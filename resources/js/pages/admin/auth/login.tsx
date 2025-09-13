@@ -1,4 +1,4 @@
-import AuthenticatedSessionController from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
+import AuthenticatedSessionController from '@/actions/App/Http/Controllers/Admin/Auth/AuthenticatedSessionController';
 import InputError from '@/components/admin/input-error';
 import TextLink from '@/components/admin/text-link';
 import { Button } from '@/components/admin/ui/button';

@@ -18,9 +18,21 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
         'email',
         'password',
+        'phone',
+        'phone_whatsapp',
+        'bio_en',
+        'bio_ar',
+        'name_ar',
+        'name_en',
+        'profile_picture_url',
+        'governate_id',
+        'profile_view_counts',
+        'is_subscribed',
+        'subscription_expires_at',
+        'ads_count',
+        'featured_ads_count',
     ];
 
     /**
@@ -43,6 +55,42 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'subscription_expires_at' => 'datetime',
+            'is_subscribed' => 'boolean',
+            'ads_count' => 'integer',
+            'featured_ads_count' => 'integer',
+            'profile_view_counts' => 'integer',
         ];
+    }
+
+    // Relationships
+    public function ads()
+    {
+        return $this->hasMany(Ad::class);
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(UserSubscription::class);
+    }
+
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function adViews()
+    {
+        return $this->hasMany(AdView::class);
+    }
+
+    public function adContacts()
+    {
+        return $this->hasMany(AdContact::class);
+    }
+
+    public function socialLinks()
+    {
+        return $this->morphMany(SocialLink::class, 'linkable');
     }
 }

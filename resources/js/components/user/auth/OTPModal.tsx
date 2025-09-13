@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/user/ui/dialog";
+import { Button } from "@/components/user/ui/button";
+import { Input } from "@/components/user/ui/input";
+import { Label } from "@/components/user/ui/label";
 import { Loader2, ChevronLeft, RotateCcw } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/user/use-toast";
 
 interface OTPModalProps {
   isOpen: boolean;

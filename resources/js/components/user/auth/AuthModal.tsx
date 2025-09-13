@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/user/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/user/ui/tabs";
+import { Button } from "@/components/user/ui/button";
+import { Input } from "@/components/user/ui/input";
+import { Label } from "@/components/user/ui/label";
+import { Checkbox } from "@/components/user/ui/checkbox";
 import { Loader2, Apple } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/user/use-toast";
 import { OTPModal } from "./OTPModal";
 import { KuwaitPhoneInput } from "./KuwaitPhoneInput";
 

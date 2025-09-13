@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/user/ui/input";
+import { Badge } from "@/components/user/ui/badge";
 
 interface KuwaitPhoneInputProps {
   value: string;

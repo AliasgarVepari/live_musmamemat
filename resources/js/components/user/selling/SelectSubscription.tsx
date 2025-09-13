@@ -1,7 +1,7 @@
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/user/ui/card";
+import { Button } from "@/components/user/ui/button";
+import { Badge } from "@/components/user/ui/badge";
 import { SellFormData } from "./SellWizard";
 import { Check, Star, Crown, Zap } from "lucide-react";
 

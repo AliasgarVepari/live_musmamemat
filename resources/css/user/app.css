@@ -17,6 +17,8 @@
     /* fonts / radii (optional but handy) */
     --font-sans:
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-cursive:
+        'Dancing Script', 'Brush Script MT', 'Lucida Handwriting', cursive;
     --radius: 0.75rem;
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -198,6 +200,14 @@
         line-height: 1.6;
     }
 
+    /* Cursive font styling */
+    .font-cursive {
+        font-family: var(--font-cursive);
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
     /* Luxury sharp icons */
     .icon-luxury {
         stroke-width: 1;
@@ -232,5 +242,42 @@
     [dir='rtl'] .space-x-reverse > * + * {
         margin-left: 1rem;
         margin-right: 0;
+    }
+
+    /* Glassmorphism effects */
+    .glassmorphism {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px 0 rgba(215, 58, 58, 0.15);
+    }
+
+    .glassmorphism-strong {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 12px 40px 0 rgba(215, 58, 58, 0.2), 0 4px 16px 0 rgba(181, 41, 44, 0.1);
+    }
+
+    /* Brand red circle animations */
+    .brand-circle {
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .brand-circle:nth-child(2) {
+        animation-delay: -2s;
+    }
+
+    .brand-circle:nth-child(3) {
+        animation-delay: -4s;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0px) scale(1);
+        }
+        50% {
+            transform: translateY(-10px) scale(1.05);
+        }
     }
 }

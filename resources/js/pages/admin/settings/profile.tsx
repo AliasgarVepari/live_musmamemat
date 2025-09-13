@@ -1,8 +1,7 @@
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import { send } from '@/routes/verification';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Transition } from '@headlessui/react';
-import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
 
 import DeleteUser from '@/components/admin/delete-user';
 import HeadingSmall from '@/components/admin/heading-small';
@@ -21,7 +20,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
+export default function Profile() {
     const { auth } = usePage<SharedData>().props;
 
     return (
@@ -47,7 +46,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Input
                                         id="name"
                                         className="mt-1 block w-full"
-                                        defaultValue={auth.user.name}
+                                        defaultValue={auth.admin?.name}
                                         name="name"
                                         required
                                         autoComplete="name"
@@ -64,7 +63,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                         id="email"
                                         type="email"
                                         className="mt-1 block w-full"
-                                        defaultValue={auth.user.email}
+                                        defaultValue={auth.admin?.email}
                                         name="email"
                                         required
                                         autoComplete="username"
@@ -74,26 +73,6 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <InputError className="mt-2" message={errors.email} />
                                 </div>
 
-                                {mustVerifyEmail && auth.user.email_verified_at === null && (
-                                    <div>
-                                        <p className="text-muted-foreground -mt-4 text-sm">
-                                            Your email address is unverified.{' '}
-                                            <Link
-                                                href={send()}
-                                                as="button"
-                                                className="text-foreground hover:decoration-current! underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out dark:decoration-neutral-500"
-                                            >
-                                                Click here to resend the verification email.
-                                            </Link>
-                                        </p>
-
-                                        {status === 'verification-link-sent' && (
-                                            <div className="mt-2 text-sm font-medium text-green-600">
-                                                A new verification link has been sent to your email address.
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
 
                                 <div className="flex items-center gap-4">
                                     <Button disabled={processing}>Save</Button>

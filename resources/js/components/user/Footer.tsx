@@ -14,7 +14,7 @@ export const Footer = () => {
                     {/* Brand & Description */}
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <h3 className={'font-brand text-2xl font-bold'}>{t('brand.name')}</h3>
+                            <h3 className={'font-cursive text-3xl font-bold text-white'}>{t('brand.name')}</h3>
                             <p className={`text-sm leading-relaxed text-gray-300 ${language === 'ar' ? 'font-arabic' : 'font-sans'}`}>
                                 {t('footer.description')}
                             </p>

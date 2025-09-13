@@ -1,5 +1,5 @@
 // Components
-import PasswordResetLinkController from '@/actions/App/Http/Controllers/Auth/PasswordResetLinkController';
+import PasswordResetLinkController from '@/actions/App/Http/Controllers/Admin/Auth/PasswordResetLinkController';
 import { login } from '@/routes/admin';
 import { Form, Head } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';

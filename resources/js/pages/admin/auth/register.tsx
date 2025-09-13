@@ -1,4 +1,4 @@
-import RegisteredUserController from '@/actions/App/Http/Controllers/Auth/RegisteredUserController';
+import RegisteredUserController from '@/actions/App/Http/Controllers/Admin/Auth/RegisteredUserController';
 import { login } from '@/routes/admin';
 import { Form, Head } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
@@ -79,6 +79,7 @@ export default function Register() {
                                 />
                                 <InputError message={errors.password_confirmation} />
                             </div>
+
 
                             <Button type="submit" className="mt-2 w-full" tabIndex={5}>
                                 {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}

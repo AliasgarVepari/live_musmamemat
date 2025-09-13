@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card } from "@/components/user/ui/card";
+import { Input } from "@/components/user/ui/input";
+import { Textarea } from "@/components/user/ui/textarea";
+import { Label } from "@/components/user/ui/label";
+import { Button } from "@/components/user/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/user/ui/select";
 import { SellFormData } from "./SellWizard";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 

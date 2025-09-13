@@ -1,6 +1,6 @@
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/user/ui/card";
+import { Button } from "@/components/user/ui/button";
 import { CheckCircle, Plus, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 

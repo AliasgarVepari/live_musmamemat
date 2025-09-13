@@ -1,5 +1,6 @@
 import { NavFooter } from '@/components/admin/nav-footer';
 import { NavMain } from '@/components/admin/nav-main';
+import { NavMainCollapsible } from '@/components/admin/nav-main-collapsible';
 import { NavUser } from '@/components/admin/nav-user';
 import {
     Sidebar,
@@ -13,7 +14,16 @@ import {
 import { dashboard } from '@/routes/admin';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { 
+    BookOpen, 
+    Folder, 
+    LayoutGrid, 
+    Settings, 
+    Link as LinkIcon, 
+    MapPin, 
+    Tag, 
+    DollarSign 
+} from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -21,6 +31,36 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+];
+
+const collapsibleNavItems = [
+    {
+        title: 'Master Module',
+        href: '/admin/master',
+        icon: Settings,
+        items: [
+            {
+                title: 'Social Links',
+                href: '/admin/social-links',
+                icon: LinkIcon,
+            },
+            {
+                title: 'Governorates',
+                href: '/admin/governorates',
+                icon: MapPin,
+            },
+            {
+                title: 'Product Conditions',
+                href: '/admin/conditions',
+                icon: Tag,
+            },
+            {
+                title: 'Price Types',
+                href: '/admin/price-types',
+                icon: DollarSign,
+            },
+        ],
     },
 ];
 
@@ -54,6 +94,7 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
+                <NavMainCollapsible items={collapsibleNavItems} />
             </SidebarContent>
 
             <SidebarFooter>

@@ -4,7 +4,7 @@ import {
   Carousel,
   CarouselContent,
   CarouselItem,
-} from "@/components/ui/carousel";
+} from "@/components/user/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 
 export const TopAdBanners = () => {

@@ -1,7 +1,7 @@
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Card } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import { Card } from "@/components/user/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/user/ui/radio-group";
+import { Label } from "@/components/user/ui/label";
 import { SellFormData } from "./SellWizard";
 import { 
   ShoppingBag, 
