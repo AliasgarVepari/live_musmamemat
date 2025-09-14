@@ -1,5 +1,183 @@
 # 📊 **Model & Database Reference Guide**
 
+## **🚫 Sort Order Removal Rule**
+
+### **Mandatory Rule: No Sort Order Fields**
+As per project requirements, **sort_order fields are completely removed** from the entire project:
+
+1. **Database Level**: All `sort_order` columns removed from all tables
+2. **Model Level**: All `sort_order` references removed from fillable arrays, casts, and scopes
+3. **Controller Level**: All `sort_order` validation and processing removed
+4. **Frontend Level**: All `sort_order` form fields and display removed
+5. **Migration Level**: Migration created to remove existing `sort_order` columns
+
+### **Tables Affected:**
+- ✅ `conditions` - sort_order removed
+- ✅ `social_links` - sort_order removed  
+- ✅ `ad_images` - sort_order removed
+- ✅ `categories` - never had sort_order (as per requirement)
+
+### **Models Updated:**
+- ✅ `Condition` - sort_order removed from fillable, casts, and scopes
+- ✅ `SocialLink` - sort_order removed from fillable, casts, and scopes
+- ✅ `AdImage` - sort_order removed from fillable, casts, and scopes
+- ✅ `Category` - never included sort_order
+
+### **Controllers Updated:**
+- ✅ `ConditionsController` - sort_order validation and processing removed
+- ✅ `SocialLinksController` - sort_order validation and processing removed
+- ✅ `CategoriesController` - created without sort_order
+
+### **Frontend Updated:**
+- ✅ All forms - sort_order input fields removed
+- ✅ All displays - sort_order columns removed
+- ✅ All sorting - now uses created_at or name fields
+
+## **🎨 CSS Centralization Rule**
+
+### **Mandatory CSS Architecture**
+All admin CSS must follow this centralized approach:
+
+1. **Single CSS File**: All admin styles must be defined in `resources/css/admin/app.css`
+2. **Layout Import**: CSS is imported in layout components (`base-layout.tsx`, `auth-layout.tsx`)
+3. **Component Wrapping**: All parent components must be wrapped with layout components
+4. **CSS Inheritance**: Child components inherit CSS from parent layout components
+5. **No Inline Styles**: No inline styles or scattered CSS imports allowed
+
+### **CSS File Structure**
+```css
+/* resources/css/admin/app.css */
+@import 'tailwindcss';
+
+/* CSS CENTRALIZATION RULE:
+ * All admin CSS should be defined in this file (app.css)
+ * CSS is imported in layout components (base-layout.tsx, auth-layout.tsx)
+ * All parent components must be wrapped with layout components
+ * Child components inherit CSS from parent layout components
+ * No inline styles or scattered CSS imports allowed
+ */
+
+@layer components {
+    /* Error Dialog Styles */
+    .error-dialog-overlay { /* ... */ }
+    
+    /* Common Admin Component Styles */
+    .admin-page-container { /* ... */ }
+    .admin-card { /* ... */ }
+    .admin-button-primary { /* ... */ }
+    /* ... more admin styles */
+}
+```
+
+### **Layout Component Structure**
+```tsx
+// base-layout.tsx - Imports CSS and provides base functionality
+import '../../../css/admin/app.css';
+import { setupGlobalErrorHandler } from '@/middleware/error-handler';
+
+// app-layout.tsx - Wraps components with AppLayout
+<BaseLayout>
+    <AppLayoutTemplate breadcrumbs={breadcrumbs}>
+        {children}
+    </AppLayoutTemplate>
+</BaseLayout>
+
+// auth-layout.tsx - Wraps auth components
+<BaseLayout>
+    <AuthLayoutTemplate title={title} description={description}>
+        {children}
+    </AuthLayoutTemplate>
+</BaseLayout>
+```
+
+### **Component Usage Pattern**
+```tsx
+// All admin pages must use AppLayout
+import AppLayout from '@/layouts/admin/app-layout';
+
+export default function AdminPage() {
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            {/* Page content inherits CSS from layout */}
+        </AppLayout>
+    );
+}
+```
+
+## **🎨 Admin Layout Standards**
+
+### **Consistent Page Structure**
+All admin pages must follow this standardized layout structure:
+
+```tsx
+import AppLayout from '@/layouts/admin/app-layout';
+import { type BreadcrumbItem } from '@/types';
+import { Head } from '@inertiajs/react';
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Parent Page',
+        href: '/admin/parent',
+    },
+    {
+        title: 'Current Page',
+        href: '/admin/current',
+    },
+];
+
+export default function PageName({ data }: PageProps) {
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <>
+                <Head title="Page Title" />
+                <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
+                    {/* Page Content */}
+                </div>
+            </>
+        </AppLayout>
+    );
+}
+```
+
+### **Required Components**
+- **AppLayout**: Wraps all admin pages with sidebar and header
+- **Breadcrumbs**: Navigation breadcrumb trail for each page
+- **Head**: Page title and meta information
+- **Consistent Container**: `flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6`
+
+### **Navigation Hierarchy**
+- **Main Items**: Dashboard (top level)
+- **Collapsible Groups**: Master Module (with sub-items)
+  - Social Links (`/admin/social-links`)
+  - Governorates (`/admin/governorates`) 
+  - Product Conditions (`/admin/conditions`)
+  - Price Types (`/admin/price-types`)
+
+### **Page Types**
+1. **Index Pages**: List views with filters, search, and CRUD actions
+2. **Create Pages**: Forms for adding new records
+3. **Edit Pages**: Forms for updating existing records
+4. **Show Pages**: Detailed view of individual records
+
+### **Code Quality Checklist**
+After implementing any code changes, always perform these checks:
+
+1. **Linter Errors**: Run `read_lints` tool to check for TypeScript/ESLint errors
+2. **Build Errors**: Run `npm run build` to ensure the project builds successfully
+3. **Type Safety**: Verify all TypeScript interfaces match expected data structures
+4. **Import Cleanup**: Remove unused imports and dependencies
+
+**Example Commands:**
+```bash
+# Check for linting errors
+read_lints --paths ['/path/to/files']
+
+# Build the project
+npm run build
+```
+
+---
+
 ## **⚠️ Important Business Rules**
 
 ### **Featured Ads System:**
@@ -17,8 +195,8 @@
 | `users` | Regular users | `email`, `phone`, `bio_en/ar`, `name_en/ar`, `governate_id` |
 | `admin_users` | Admin users | `name`, `email`, `permissions`, `is_active` |
 | `ads` | Ad listings | `title_en/ar`, `description_en/ar`, `price`, `status` |
-| `categories` | Ad categories | `name_en/ar`, `slug`, `icon_url`, `status` |
-| `social_links` | Social media links | `platform`, `url`, `linkable_type/id`, `is_active` |
+| `categories` | Product categories | `name_en`, `name_ar`, `slug`, `icon_url`, `status` |
+| `social_links` | Social media links | `platform`, `url`, `is_active` |
 | `favorites` | User favorites | `user_id`, `ad_id` |
 | `ad_views` | Ad view tracking | `ad_id`, `user_id`, `ip_address`, `viewed_at` |
 | `banners` | Site banners | `image_url`, `link_url`, `position`, `status` |
@@ -84,7 +262,6 @@ protected $casts = [
 - `favorites()` → hasMany(Favorite::class)
 - `adViews()` → hasMany(AdView::class)
 - `adContacts()` → hasMany(AdContact::class)
-- `socialLinks()` → morphMany(SocialLink::class, 'linkable')
 
 ---
 
@@ -125,7 +302,6 @@ protected $casts = [
 ```
 
 ### **Relationships:**
-- `socialLinks()` → morphMany(SocialLink::class, 'linkable')
 
 ---
 
@@ -231,13 +407,60 @@ protected $casts = [
 
 ---
 
+## **🏷️ Category Model**
+
+### **Model Details**
+- **File**: `app/Models/Category.php`
+- **Table**: `categories`
+- **Purpose**: Product categories for ads
+
+### **Database Schema**
+```sql
+CREATE TABLE categories (
+    id BIGINT PRIMARY KEY,
+    name_en VARCHAR(255) NOT NULL,
+    name_ar VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    icon_url VARCHAR(255) NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+```
+
+### **Model Properties**
+- **Fillable**: `name_en`, `name_ar`, `slug`, `icon_url`, `status`
+- **Casts**: `status` → `string`
+
+### **Relationships**
+- `ads()` → `hasMany(Ad::class)` - One category has many ads
+
+### **Scopes**
+- `scopeActive()` → `where('status', 'active')` - Filter active categories
+
+### **Usage Examples**
+```php
+// Get all active categories
+$activeCategories = Category::active()->get();
+
+// Get category with ads
+$category = Category::with('ads')->find(1);
+
+// Create new category
+Category::create([
+    'name_en' => 'Electronics',
+    'name_ar' => 'إلكترونيات',
+    'slug' => 'electronics',
+    'icon_url' => 'https://example.com/icon.png',
+    'status' => 'active'
+]);
+```
+
 ## **🔗 SocialLink Model**
 
 ### **Table: `social_links`**
 ```sql
 - id (bigint, PK)
-- linkable_type (varchar, not null) // 'App\Models\User' or 'App\Models\AdminUser'
-- linkable_id (bigint, not null)
 - platform (varchar, not null) // 'facebook', 'instagram', 'twitter', etc.
 - url (varchar, not null)
 - is_active (boolean, not null, default: true)
@@ -259,7 +482,6 @@ protected $casts = [
 ```
 
 ### **Relationships:**
-- `linkable()` → morphTo() // Polymorphic relationship
 
 ### **Scopes:**
 - `scopeActive()` → where('is_active', true)

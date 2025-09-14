@@ -25,8 +25,7 @@ class MasterModuleController extends Controller
         $priceTypesCount = PriceType::count();
 
         // Get recent activity
-        $recentSocialLinks = SocialLink::with('linkable')
-            ->orderBy('created_at', 'desc')
+        $recentSocialLinks = SocialLink::orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 

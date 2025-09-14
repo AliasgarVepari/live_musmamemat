@@ -45,11 +45,6 @@ class AdminUser extends Authenticatable
         return $query->where('is_active', true);
     }
 
-    // Relationships
-    public function socialLinks()
-    {
-        return $this->morphMany(SocialLink::class, 'linkable');
-    }
 
     // Helper methods
     public function hasPermission($permission)

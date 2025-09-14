@@ -15,7 +15,6 @@ class AdImage extends Model
         'mime_type',
         'file_size',
         'is_primary',
-        'sort_order',
     ];
 
     protected function casts(): array
@@ -23,7 +22,6 @@ class AdImage extends Model
         return [
             'is_primary' => 'boolean',
             'file_size' => 'integer',
-            'sort_order' => 'integer',
         ];
     }
 
@@ -39,8 +37,4 @@ class AdImage extends Model
         return $query->where('is_primary', true);
     }
 
-    public function scopeOrdered($query)
-    {
-        return $query->orderBy('sort_order');
-    }
 }

@@ -54,15 +54,27 @@ class PriceTypesController extends Controller
         // Generate slug from English name
         $slug = \Str::slug($request->name_en);
 
-        PriceType::create([
-            'name_en' => $request->name_en,
-            'name_ar' => $request->name_ar,
-            'slug' => $slug,
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+        // Check if slug already exists
+        if (PriceType::where('slug', $slug)->exists()) {
+            return back()->withErrors(['name_en' => 'A price type with this name already exists.']);
+        }
 
-        return redirect()->route('admin.price-types.index')
-            ->with('success', 'Price type created successfully.');
+        try {
+            PriceType::create([
+                'name_en' => $request->name_en,
+                'name_ar' => $request->name_ar,
+                'slug' => $slug,
+                'is_active' => $request->boolean('is_active', true),
+            ]);
+
+            return redirect()->route('price-types.index')
+                ->with('success', 'Price type created successfully.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->getCode() == 23505) { // Unique constraint violation
+                return back()->withErrors(['name_en' => 'A price type with this name already exists.']);
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -96,7 +108,7 @@ class PriceTypesController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
-        return redirect()->route('admin.price-types.index')
+        return redirect()->route('price-types.index')
             ->with('success', 'Price type updated successfully.');
     }
 
@@ -112,7 +124,7 @@ class PriceTypesController extends Controller
 
         $priceType->delete();
 
-        return redirect()->route('admin.price-types.index')
+        return redirect()->route('price-types.index')
             ->with('success', 'Price type deleted successfully.');
     }
 

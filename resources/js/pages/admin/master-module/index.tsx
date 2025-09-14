@@ -16,6 +16,15 @@ import {
     ToggleRight
 } from 'lucide-react';
 import { Link as InertiaLink } from '@inertiajs/react';
+import AppLayout from '@/layouts/admin/app-layout';
+import { type BreadcrumbItem } from '@/types';
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Master Module',
+        href: '/admin/master',
+    },
+];
 
 interface MasterModuleProps {
     stats: {
@@ -31,10 +40,6 @@ interface MasterModuleProps {
             url: string;
             is_active: boolean;
             created_at: string;
-            linkable: {
-                name?: string;
-                email?: string;
-            };
         }>;
         governorates: Array<{
             id: number;
@@ -102,9 +107,10 @@ export default function MasterModuleIndex({ stats, recent_activity }: MasterModu
     ];
 
     return (
-        <>
-            <Head title="Master Module" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <>
+                <Head title="Master Module" />
+                <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -152,12 +158,12 @@ export default function MasterModuleIndex({ stats, recent_activity }: MasterModu
                                                         <div key={index} className="flex items-center justify-between text-xs">
                                                             <span className="truncate">
                                                                 {module.title === 'Social Links' 
-                                                                    ? `${item.platform} - ${item.linkable?.name || item.linkable?.email}`
+                                                                    ? `${(item as any).platform} - ${(item as any).url}`
                                                                     : module.title === 'Governorates'
-                                                                    ? item.name_en
+                                                                    ? (item as any).name_en
                                                                     : module.title === 'Product Conditions'
-                                                                    ? item.name_en
-                                                                    : item.name_en
+                                                                    ? (item as any).name_en
+                                                                    : (item as any).name_en
                                                                 }
                                                             </span>
                                                             <div className="flex items-center gap-1">
@@ -216,7 +222,8 @@ export default function MasterModuleIndex({ stats, recent_activity }: MasterModu
                         </div>
                     </CardContent>
                 </Card>
-            </div>
-        </>
+                </div>
+            </>
+        </AppLayout>
     );
 }

@@ -22,7 +22,8 @@ import {
     Link as LinkIcon, 
     MapPin, 
     Tag, 
-    DollarSign 
+    DollarSign,
+    Grid3X3
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -60,6 +61,11 @@ const collapsibleNavItems = [
                 href: '/admin/price-types',
                 icon: DollarSign,
             },
+            {
+                title: 'Categories',
+                href: '/admin/categories',
+                icon: Grid3X3,
+            },
         ],
     },
 ];
@@ -94,7 +100,9 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
-                <NavMainCollapsible items={collapsibleNavItems} />
+                <div className="mt-2">
+                    <NavMainCollapsible items={collapsibleNavItems} />
+                </div>
             </SidebarContent>
 
             <SidebarFooter>

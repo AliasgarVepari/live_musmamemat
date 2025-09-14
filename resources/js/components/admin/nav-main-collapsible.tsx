@@ -1,13 +1,11 @@
 import { 
     SidebarGroup, 
-    SidebarGroupLabel, 
     SidebarMenu, 
     SidebarMenuButton, 
     SidebarMenuItem,
     SidebarMenuSub,
     SidebarMenuSubButton,
-    SidebarMenuSubItem,
-    SidebarMenuAction
+    SidebarMenuSubItem
 } from '@/components/admin/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/admin/ui/collapsible';
 import { type NavItem, type CollapsibleNavItem } from '@/types';
@@ -39,7 +37,6 @@ export function NavMainCollapsible({ items = [] }: { items: CollapsibleNavItem[]
 
     return (
         <SidebarGroup className="px-2 py-0">
-            <SidebarGroupLabel>Platform</SidebarGroupLabel>
             <SidebarMenu>
                 {items.map((item) => (
                     <Collapsible
@@ -49,21 +46,17 @@ export function NavMainCollapsible({ items = [] }: { items: CollapsibleNavItem[]
                         onOpenChange={() => toggleItem(item.title)}
                     >
                         <SidebarMenuItem>
-                            <SidebarMenuAction
-                                asChild
-                                isActive={isParentActive(item)}
-                                tooltip={{ children: item.title }}
-                            >
-                                <CollapsibleTrigger asChild>
-                                    <SidebarMenuButton>
-                                        {item.icon && <item.icon />}
-                                        <span>{item.title}</span>
-                                        <ChevronRight className={`ml-auto transition-transform duration-200 ${
-                                            openItems.includes(item.title) ? 'rotate-90' : ''
-                                        }`} />
-                                    </SidebarMenuButton>
-                                </CollapsibleTrigger>
-                            </SidebarMenuAction>
+                            <CollapsibleTrigger asChild>
+                                <SidebarMenuButton
+                                    isActive={isParentActive(item)}
+                                >
+                                    {item.icon && <item.icon className="h-4 w-4" />}
+                                    <span>{item.title}</span>
+                                    <ChevronRight className={`ml-auto h-4 w-4 transition-transform duration-200 ${
+                                        openItems.includes(item.title) ? 'rotate-90' : ''
+                                    }`} />
+                                </SidebarMenuButton>
+                            </CollapsibleTrigger>
                             
                             {item.items && (
                                 <CollapsibleContent>
@@ -73,10 +66,9 @@ export function NavMainCollapsible({ items = [] }: { items: CollapsibleNavItem[]
                                                 <SidebarMenuSubButton
                                                     asChild
                                                     isActive={isItemActive(subItem)}
-                                                    tooltip={{ children: subItem.title }}
                                                 >
                                                     <Link href={subItem.href} prefetch>
-                                                        {subItem.icon && <subItem.icon />}
+                                                        {subItem.icon && <subItem.icon className="h-4 w-4" />}
                                                         <span>{subItem.title}</span>
                                                     </Link>
                                                 </SidebarMenuSubButton>

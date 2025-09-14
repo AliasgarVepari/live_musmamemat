@@ -63,7 +63,7 @@ interface DashboardProps {
             title: string;
             user_name: string;
             category: string;
-            status: 'pending' | 'approved' | 'rejected';
+            status: 'draft' | 'active' | 'inactive' | 'expired' | 'sold' | 'delete';
             created_at: string;
             price: number;
         }>;

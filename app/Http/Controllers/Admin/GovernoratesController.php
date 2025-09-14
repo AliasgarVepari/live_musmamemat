@@ -54,15 +54,27 @@ class GovernoratesController extends Controller
         // Generate slug from English name
         $slug = \Str::slug($request->name_en);
 
-        Governorate::create([
-            'name_en' => $request->name_en,
-            'name_ar' => $request->name_ar,
-            'slug' => $slug,
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+        // Check if slug already exists
+        if (Governorate::where('slug', $slug)->exists()) {
+            return back()->withErrors(['name_en' => 'A governorate with this name already exists.']);
+        }
 
-        return redirect()->route('admin.governorates.index')
-            ->with('success', 'Governorate created successfully.');
+        try {
+            Governorate::create([
+                'name_en' => $request->name_en,
+                'name_ar' => $request->name_ar,
+                'slug' => $slug,
+                'is_active' => $request->boolean('is_active', true),
+            ]);
+
+            return redirect()->route('governorates.index')
+                ->with('success', 'Governorate created successfully.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->getCode() == 23505) { // Unique constraint violation
+                return back()->withErrors(['name_en' => 'A governorate with this name already exists.']);
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -96,7 +108,7 @@ class GovernoratesController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
-        return redirect()->route('admin.governorates.index')
+        return redirect()->route('governorates.index')
             ->with('success', 'Governorate updated successfully.');
     }
 
@@ -112,7 +124,7 @@ class GovernoratesController extends Controller
 
         $governorate->delete();
 
-        return redirect()->route('admin.governorates.index')
+        return redirect()->route('governorates.index')
             ->with('success', 'Governorate deleted successfully.');
     }
 

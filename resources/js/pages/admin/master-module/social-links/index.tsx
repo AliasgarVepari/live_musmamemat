@@ -7,18 +7,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
     Plus, 
     Search, 
-    Filter, 
     Link, 
     Edit, 
     Trash2, 
     ToggleLeft, 
     ToggleRight,
-    ExternalLink,
-    User,
-    Shield
+    ExternalLink
 } from 'lucide-react';
 import { Link as InertiaLink, router } from '@inertiajs/react';
 import { useState } from 'react';
+import AppLayout from '@/layouts/admin/app-layout';
+import { type BreadcrumbItem } from '@/types';
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Master Module',
+        href: '/admin/master',
+    },
+    {
+        title: 'Social Links',
+        href: '/admin/social-links',
+    },
+];
 
 interface SocialLink {
     id: number;
@@ -27,11 +37,6 @@ interface SocialLink {
     is_active: boolean;
     sort_order: number;
     created_at: string;
-    linkable: {
-        name?: string;
-        email?: string;
-        type: string;
-    };
 }
 
 interface SocialLinksIndexProps {
@@ -49,17 +54,53 @@ interface SocialLinksIndexProps {
 
 export default function SocialLinksIndex({ socialLinks, filters, platforms }: SocialLinksIndexProps) {
     const [searchTerm, setSearchTerm] = useState('');
-    const [platformFilter, setPlatformFilter] = useState(filters.platform || '');
-    const [statusFilter, setStatusFilter] = useState(filters.status || '');
+    const [platformFilter, setPlatformFilter] = useState(filters.platform || 'all');
+    const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
 
-    const handleFilter = () => {
-        router.get('/admin/social-links', {
-            platform: platformFilter,
-            status: statusFilter,
-        }, {
-            preserveState: true,
-            replace: true,
-        });
+    // Function to show error dialog
+    const showErrorDialog = (title: string, message: string) => {
+        // Check if dialog already exists
+        const existingDialog = document.querySelector('.error-dialog-overlay');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+
+        // Create error dialog element
+        const dialog = document.createElement('div');
+        dialog.className = 'error-dialog-overlay';
+        dialog.innerHTML = `
+            <div class="error-dialog-content">
+                <div class="error-dialog-header">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="error-dialog-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                        </div>
+                        <div class="error-dialog-title">${title}</div>
+                    </div>
+                    <div class="error-dialog-message">${message}</div>
+                </div>
+                <div class="error-dialog-footer p-6 pt-0">
+                    <button 
+                        onclick="this.closest('.error-dialog-overlay').remove()"
+                        class="error-dialog-button"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Add to document
+        document.body.appendChild(dialog);
+
+        // Auto remove after 10 seconds
+        setTimeout(() => {
+            if (dialog.parentNode) {
+                dialog.parentNode.removeChild(dialog);
+            }
+        }, 10000);
     };
 
     const handleToggle = (id: number) => {
@@ -70,7 +111,14 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
 
     const handleDelete = (id: number) => {
         if (confirm('Are you sure you want to delete this social link?')) {
-            router.delete(`/admin/social-links/${id}`);
+            router.delete(`/admin/social-links/${id}`, {
+                onError: (errors) => {
+                    // Show error dialog for delete errors
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    showErrorDialog('Cannot Delete Social Link', errorMessage);
+                },
+            });
         }
     };
 
@@ -91,16 +139,19 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
 
     const filteredLinks = socialLinks.data.filter(link => {
         const matchesSearch = link.platform.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            link.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (link.linkable.name && link.linkable.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                            (link.linkable.email && link.linkable.email.toLowerCase().includes(searchTerm.toLowerCase()));
-        return matchesSearch;
+                            link.url.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesPlatform = platformFilter === 'all' || link.platform === platformFilter;
+        const matchesStatus = statusFilter === 'all' || 
+                            (statusFilter === 'active' && link.is_active) ||
+                            (statusFilter === 'inactive' && !link.is_active);
+        return matchesSearch && matchesPlatform && matchesStatus;
     });
 
     return (
-        <>
-            <Head title="Social Links Management" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <>
+                <Head title="Social Links Management" />
+                <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -123,7 +174,7 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
                         <CardTitle className="text-lg">Filters</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid gap-4 md:grid-cols-4">
+                        <div className="grid gap-4 md:grid-cols-3">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Search</label>
                                 <div className="relative">
@@ -143,7 +194,7 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
                                         <SelectValue placeholder="All platforms" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All platforms</SelectItem>
+                                        <SelectItem value="all">All platforms</SelectItem>
                                         {platforms.map((platform) => (
                                             <SelectItem key={platform} value={platform}>
                                                 {getPlatformIcon(platform)} {platform.charAt(0).toUpperCase() + platform.slice(1)}
@@ -159,18 +210,11 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
                                         <SelectValue placeholder="All statuses" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All statuses</SelectItem>
+                                        <SelectItem value="all">All statuses</SelectItem>
                                         <SelectItem value="active">Active</SelectItem>
                                         <SelectItem value="inactive">Inactive</SelectItem>
                                     </SelectContent>
                                 </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">&nbsp;</label>
-                                <Button onClick={handleFilter} className="w-full">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Apply Filters
-                                </Button>
                             </div>
                         </div>
                     </CardContent>
@@ -213,13 +257,6 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center space-x-2">
                                                     <h3 className="font-semibold capitalize">{link.platform}</h3>
-                                                    <Badge variant={link.linkable.type === 'admin' ? 'default' : 'secondary'}>
-                                                        {link.linkable.type === 'admin' ? (
-                                                            <><Shield className="h-3 w-3 mr-1" /> Admin</>
-                                                        ) : (
-                                                            <><User className="h-3 w-3 mr-1" /> User</>
-                                                        )}
-                                                    </Badge>
                                                     {link.is_active ? (
                                                         <Badge variant="default" className="bg-green-100 text-green-800">
                                                             Active
@@ -230,9 +267,6 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-muted-foreground truncate">
-                                                    {link.linkable.name || link.linkable.email}
-                                                </p>
                                                 <div className="flex items-center space-x-2 mt-1">
                                                     <a 
                                                         href={link.url} 
@@ -278,7 +312,8 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
                         )}
                     </CardContent>
                 </Card>
-            </div>
-        </>
+                </div>
+            </>
+        </AppLayout>
     );
 }

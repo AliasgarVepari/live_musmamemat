@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SocialLink;
-use App\Models\AdminUser;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,8 +15,7 @@ class SocialLinksController extends Controller
      */
     public function index(Request $request): Response
     {
-        $query = SocialLink::with('linkable')
-            ->orderBy('created_at', 'desc');
+        $query = SocialLink::orderBy('created_at', 'desc');
 
         // Filter by platform if provided
         if ($request->has('platform') && $request->platform) {
@@ -48,10 +45,6 @@ class SocialLinksController extends Controller
     public function create(): Response
     {
         return Inertia::render('admin/master-module/social-links/create', [
-            'linkableTypes' => [
-                ['value' => 'admin', 'label' => 'Admin User'],
-                ['value' => 'user', 'label' => 'Regular User'],
-            ],
             'platforms' => [
                 'facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'tiktok', 'snapchat', 'whatsapp', 'telegram'
             ],
@@ -64,32 +57,18 @@ class SocialLinksController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'linkable_type' => 'required|in:admin,user',
-            'linkable_id' => 'required|integer',
             'platform' => 'required|string|max:255',
             'url' => 'required|url|max:500',
-            'is_active' => 'boolean',
-            'sort_order' => 'integer|min:0',
         ]);
-
-        // Verify the linkable entity exists
-        $linkableClass = $request->linkable_type === 'admin' ? AdminUser::class : User::class;
-        $linkable = $linkableClass::find($request->linkable_id);
-        
-        if (!$linkable) {
-            return back()->withErrors(['linkable_id' => 'The selected user does not exist.']);
-        }
 
         SocialLink::create([
-            'linkable_type' => $linkableClass,
-            'linkable_id' => $request->linkable_id,
             'platform' => $request->platform,
             'url' => $request->url,
-            'is_active' => $request->boolean('is_active', true),
-            'sort_order' => $request->sort_order ?? 0,
+            'is_active' => true,
+            'sort_order' => 0,
         ]);
 
-        return redirect()->route('admin.social-links.index')
+        return redirect()->route('social-links.index')
             ->with('success', 'Social link created successfully.');
     }
 
@@ -98,7 +77,6 @@ class SocialLinksController extends Controller
      */
     public function edit(SocialLink $socialLink): Response
     {
-        $socialLink->load('linkable');
 
         return Inertia::render('admin/master-module/social-links/edit', [
             'socialLink' => $socialLink,
@@ -127,7 +105,7 @@ class SocialLinksController extends Controller
             'sort_order' => $request->sort_order ?? 0,
         ]);
 
-        return redirect()->route('admin.social-links.index')
+        return redirect()->route('social-links.index')
             ->with('success', 'Social link updated successfully.');
     }
 
@@ -138,7 +116,7 @@ class SocialLinksController extends Controller
     {
         $socialLink->delete();
 
-        return redirect()->route('admin.social-links.index')
+        return redirect()->route('social-links.index')
             ->with('success', 'Social link deleted successfully.');
     }
 

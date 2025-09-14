@@ -28,7 +28,7 @@ class Governorate extends Model
 
     public function users()
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(User::class, 'governate_id');
     }
 
     // Scopes

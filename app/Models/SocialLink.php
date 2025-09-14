@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class SocialLink extends Model
 {
@@ -11,22 +10,15 @@ class SocialLink extends Model
         'platform',
         'url',
         'is_active',
-        'sort_order',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
-            'sort_order' => 'integer',
         ];
     }
 
-    // Polymorphic relationship
-    public function linkable(): MorphTo
-    {
-        return $this->morphTo();
-    }
 
     // Scopes
     public function scopeActive($query)
@@ -39,10 +31,6 @@ class SocialLink extends Model
         return $query->where('platform', $platform);
     }
 
-    public function scopeOrdered($query)
-    {
-        return $query->orderBy('sort_order')->orderBy('created_at');
-    }
 
     // Helper methods
     public function getDisplayUrlAttribute()

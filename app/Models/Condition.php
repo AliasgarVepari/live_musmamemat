@@ -11,14 +11,12 @@ class Condition extends Model
         'name_ar',
         'slug',
         'is_active',
-        'sort_order',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
-            'sort_order' => 'integer',
         ];
     }
 
@@ -32,10 +30,5 @@ class Condition extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
-    }
-
-    public function scopeOrdered($query)
-    {
-        return $query->orderBy('sort_order');
     }
 }

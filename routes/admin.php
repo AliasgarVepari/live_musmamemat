@@ -32,6 +32,10 @@ Route::prefix('admin')->group(function () {
         // Price Types Management
         Route::resource('price-types', App\Http\Controllers\Admin\PriceTypesController::class);
         Route::patch('price-types/{priceType}/toggle', [App\Http\Controllers\Admin\PriceTypesController::class, 'toggle'])->name('price-types.toggle');
+        
+        // Categories Management
+        Route::resource('categories', App\Http\Controllers\Admin\CategoriesController::class);
+        Route::patch('categories/{category}/toggle', [App\Http\Controllers\Admin\CategoriesController::class, 'toggle'])->name('categories.toggle');
     });
     require __DIR__ . '/auth.php';
     require __DIR__ . '/settings.php';

@@ -89,8 +89,9 @@ class User extends Authenticatable
         return $this->hasMany(AdContact::class);
     }
 
-    public function socialLinks()
+
+    public function governorate()
     {
-        return $this->morphMany(SocialLink::class, 'linkable');
+        return $this->belongsTo(Governorate::class, 'governate_id');
     }
 }

@@ -55,16 +55,28 @@ class ConditionsController extends Controller
         // Generate slug from English name
         $slug = \Str::slug($request->name_en);
 
-        Condition::create([
-            'name_en' => $request->name_en,
-            'name_ar' => $request->name_ar,
-            'slug' => $slug,
-            'is_active' => $request->boolean('is_active', true),
-            'sort_order' => $request->sort_order ?? 0,
-        ]);
+        // Check if slug already exists
+        if (Condition::where('slug', $slug)->exists()) {
+            return back()->withErrors(['name_en' => 'A condition with this name already exists.']);
+        }
 
-        return redirect()->route('admin.conditions.index')
-            ->with('success', 'Condition created successfully.');
+        try {
+            Condition::create([
+                'name_en' => $request->name_en,
+                'name_ar' => $request->name_ar,
+                'slug' => $slug,
+                'is_active' => $request->boolean('is_active', true),
+                'sort_order' => $request->sort_order ?? 0,
+            ]);
+
+            return redirect()->route('conditions.index')
+                ->with('success', 'Condition created successfully.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->getCode() == 23505) { // Unique constraint violation
+                return back()->withErrors(['name_en' => 'A condition with this name already exists.']);
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -100,7 +112,7 @@ class ConditionsController extends Controller
             'sort_order' => $request->sort_order ?? 0,
         ]);
 
-        return redirect()->route('admin.conditions.index')
+        return redirect()->route('conditions.index')
             ->with('success', 'Condition updated successfully.');
     }
 
@@ -116,7 +128,7 @@ class ConditionsController extends Controller
 
         $condition->delete();
 
-        return redirect()->route('admin.conditions.index')
+        return redirect()->route('conditions.index')
             ->with('success', 'Condition deleted successfully.');
     }
 
