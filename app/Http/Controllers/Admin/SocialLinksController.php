@@ -65,7 +65,6 @@ class SocialLinksController extends Controller
             'platform' => $request->platform,
             'url' => $request->url,
             'is_active' => true,
-            'sort_order' => 0,
         ]);
 
         return redirect()->route('social-links.index')
@@ -95,14 +94,12 @@ class SocialLinksController extends Controller
             'platform' => 'required|string|max:255',
             'url' => 'required|url|max:500',
             'is_active' => 'boolean',
-            'sort_order' => 'integer|min:0',
         ]);
 
         $socialLink->update([
             'platform' => $request->platform,
             'url' => $request->url,
             'is_active' => $request->boolean('is_active', true),
-            'sort_order' => $request->sort_order ?? 0,
         ]);
 
         return redirect()->route('social-links.index')

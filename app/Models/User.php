@@ -4,13 +4,14 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -27,12 +28,15 @@ class User extends Authenticatable
         'name_ar',
         'name_en',
         'profile_picture_url',
-        'governate_id',
+        'governorate_id',
         'profile_view_counts',
         'is_subscribed',
         'subscription_expires_at',
         'ads_count',
         'featured_ads_count',
+        'status',
+        'suspension_reason',
+        'deletion_reason',
     ];
 
     /**
@@ -60,6 +64,7 @@ class User extends Authenticatable
             'ads_count' => 'integer',
             'featured_ads_count' => 'integer',
             'profile_view_counts' => 'integer',
+            'status' => 'string',
         ];
     }
 
@@ -72,6 +77,11 @@ class User extends Authenticatable
     public function subscriptions()
     {
         return $this->hasMany(UserSubscription::class);
+    }
+
+    public function subscription()
+    {
+        return $this->hasOne(UserSubscription::class)->where('is_active', true)->latest();
     }
 
     public function favorites()
@@ -92,6 +102,6 @@ class User extends Authenticatable
 
     public function governorate()
     {
-        return $this->belongsTo(Governorate::class, 'governate_id');
+        return $this->belongsTo(Governorate::class, 'governorate_id');
     }
 }

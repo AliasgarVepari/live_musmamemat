@@ -4,6 +4,7 @@ namespace App\Services;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\AwsS3V3\PortableVisibilityConverter;
 
 class ImageUploadService
 {
@@ -47,7 +48,9 @@ class ImageUploadService
         // Optionally set ACL to public-read if allowed
         if (env('AWS_SET_PUBLIC_ACL', false)) {
             try {
-                Storage::disk('s3')->setVisibility($path, 'public');
+                $visibilityConverter = new PortableVisibilityConverter();
+                $visibility = $visibilityConverter->inverseForFile('public');
+                Storage::disk('s3')->setVisibility($path, $visibility);
             } catch (\Throwable $e) {
                 // ignore if not permitted
             }

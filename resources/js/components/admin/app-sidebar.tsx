@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes/admin';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, DollarSign, Folder, Grid3X3, LayoutGrid, Link as LinkIcon, MapPin, Settings, Tag } from 'lucide-react';
+import { BookOpen, Crown, DollarSign, Folder, Grid3X3, LayoutGrid, Link as LinkIcon, MapPin, Settings, Tag, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -24,9 +24,19 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
+        title: 'Users',
+        href: '/admin/users',
+        icon: Users,
+    },
+    {
         title: 'Categories',
         href: '/admin/categories',
         icon: Grid3X3,
+    },
+    {
+        title: 'Subscription Plans',
+        href: '/admin/subscription-plans',
+        icon: Crown,
     },
 ];
 

@@ -13,7 +13,6 @@ class Category extends Model
         'name_ar',
         'slug',
         'icon_url',
-        'icon_name',
         'status',
     ];
 

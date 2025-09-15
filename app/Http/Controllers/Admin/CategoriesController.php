@@ -58,7 +58,6 @@ class CategoriesController extends Controller
             }
             return $category;
         });
-
         return Inertia::render('admin/categories/index', [
             'categories' => $categories,
             'filters'    => $request->only(['search', 'status']),
@@ -81,7 +80,7 @@ class CategoriesController extends Controller
         $validated = $request->validate([
             'name_en' => 'required|string|max:255',
             'name_ar' => 'required|string|max:255',
-            'icon'    => 'nullable|mimes:jpg,jpeg,png,webp,svg,svgz|max:10240',
+            'icon'    => 'required|mimes:svg,svgz|max:10240',
             'status'  => 'required|in:active,inactive',
         ]);
 
@@ -104,7 +103,6 @@ class CategoriesController extends Controller
                 'name_ar'   => $validated['name_ar'],
                 'slug'      => $slug,
                 'icon_url'  => $validated['icon_url'] ?? null,
-                'icon_name' => $request->input('icon_name'),
                 'status'    => $validated['status'],
             ]);
 
@@ -133,8 +131,9 @@ class CategoriesController extends Controller
         $validated = $request->validate([
             'name_en' => 'required|string|max:255',
             'name_ar' => 'required|string|max:255',
-            'icon'    => 'nullable|mimes:jpg,jpeg,png,webp,svg,svgz|max:10240',
+            'icon'    => 'required|mimes:svg,svgz|max:10240',
             'status'  => 'required|in:active,inactive',
+            'remove_icon' => 'nullable|boolean',
         ]);
 
         $slug = Str::slug($request->name_en);
@@ -145,7 +144,7 @@ class CategoriesController extends Controller
         }
 
         try {
-            // Handle icon upload if provided
+            // Handle icon upload/removal
             if ($request->hasFile('icon')) {
                 // Delete old icon if exists
                 if ($category->icon_url) {
@@ -154,8 +153,14 @@ class CategoriesController extends Controller
 
                 $iconUrl               = $this->imageUploadService->uploadImage($request->file('icon'), 'category');
                 $validated['icon_url'] = $iconUrl;
+            } elseif ($request->boolean('remove_icon')) {
+                // Remove existing icon if requested
+                if ($category->icon_url) {
+                    $this->imageUploadService->deleteImage($category->icon_url);
+                }
+                $validated['icon_url'] = null;
             } else {
-                // Keep existing icon_url if no new file uploaded
+                // Keep existing icon_url if no changes
                 $validated['icon_url'] = $category->icon_url;
             }
 
@@ -164,7 +169,6 @@ class CategoriesController extends Controller
                 'name_ar'   => $validated['name_ar'],
                 'slug'      => $slug,
                 'icon_url'  => $validated['icon_url'],
-                'icon_name' => $request->input('icon_name', $category->icon_name),
                 'status'    => $validated['status'],
             ]);
 

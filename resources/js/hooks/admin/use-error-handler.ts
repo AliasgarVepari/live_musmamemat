@@ -10,11 +10,19 @@ export function useErrorHandler({ onError }: ErrorHandlerProps = {}) {
 
     useEffect(() => {
         if (errors && Object.keys(errors).length > 0) {
-            const errorMessages = Object.values(errors).flat();
-            const errorMessage = errorMessages.join(', ');
+            // Only show error dialog for non-form validation errors
+            // Form validation errors should be handled by individual forms
+            const hasNonFormErrors = Object.keys(errors).some(key => 
+                !['name_en', 'name_ar', 'status', 'icon', 'remove_icon'].includes(key)
+            );
+            
+            if (hasNonFormErrors) {
+                const errorMessages = Object.values(errors).flat();
+                const errorMessage = errorMessages.join(', ');
 
-            // Show error dialog
-            showErrorDialog('Validation Error', errorMessage);
+                // Show error dialog
+                showErrorDialog('Validation Error', errorMessage);
+            }
 
             // Call custom error handler if provided
             onError?.(errors);

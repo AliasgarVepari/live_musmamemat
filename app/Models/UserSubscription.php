@@ -10,9 +10,12 @@ class UserSubscription extends Model
         'user_id',
         'subscription_plan_id',
         'status',
+        'is_active',
         'starts_at',
         'expires_at',
         'cancelled_at',
+        'revoked_at',
+        'revocation_reason',
         'payment_method',
         'payment_id',
         'amount_paid',
@@ -24,6 +27,8 @@ class UserSubscription extends Model
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'revoked_at' => 'datetime',
+            'is_active' => 'boolean',
             'amount_paid' => 'decimal:2',
         ];
     }
@@ -37,6 +42,11 @@ class UserSubscription extends Model
     public function subscriptionPlan()
     {
         return $this->belongsTo(SubscriptionPlan::class);
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
     }
 
     // Scopes
