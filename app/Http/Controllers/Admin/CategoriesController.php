@@ -1,16 +1,23 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Services\ImageUploadService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
-use Illuminate\Database\QueryException;
 
 class CategoriesController extends Controller
 {
+    protected $imageUploadService;
+
+    public function __construct(ImageUploadService $imageUploadService)
+    {
+        $this->imageUploadService = $imageUploadService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -23,20 +30,38 @@ class CategoriesController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name_en', 'like', "%{$search}%")
-                  ->orWhere('name_ar', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%");
+                    ->orWhere('name_ar', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
-        if ($request->filled('status')) {
+        if ($request->filled('status') && in_array($request->status, ['active', 'inactive'])) {
             $query->where('status', $request->status);
         }
 
         $categories = $query->paginate(10)->withQueryString();
 
-        return Inertia::render('admin/master-module/categories/index', [
+        // Attach temporary URL for icons (works even when objects are private)
+        $bucket = config('filesystems.disks.s3.bucket');
+        $categories->getCollection()->transform(function (Category $category) use ($bucket) {
+            if ($category->icon_url) {
+                $path = parse_url($category->icon_url, PHP_URL_PATH) ?: '';
+                $path = ltrim($path, '/');
+                if (str_starts_with($path, $bucket . '/')) {
+                    $path = substr($path, strlen($bucket) + 1);
+                }
+                try {
+                    $category->icon_temp_url = Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60));
+                } catch (\Throwable $e) {
+                    $category->icon_temp_url = $category->icon_url; // fallback
+                }
+            }
+            return $category;
+        });
+
+        return Inertia::render('admin/categories/index', [
             'categories' => $categories,
-            'filters' => $request->only(['search', 'status']),
+            'filters'    => $request->only(['search', 'status']),
         ]);
     }
 
@@ -45,7 +70,7 @@ class CategoriesController extends Controller
      */
     public function create()
     {
-        return Inertia::render('admin/master-module/categories/create');
+        return Inertia::render('admin/categories/create');
     }
 
     /**
@@ -53,11 +78,11 @@ class CategoriesController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name_en' => 'required|string|max:255',
             'name_ar' => 'required|string|max:255',
-            'icon_url' => 'nullable|string|max:255',
-            'status' => 'required|in:active,inactive',
+            'icon'    => 'nullable|mimes:jpg,jpeg,png,webp,svg,svgz|max:10240',
+            'status'  => 'required|in:active,inactive',
         ]);
 
         $slug = Str::slug($request->name_en);
@@ -68,32 +93,26 @@ class CategoriesController extends Controller
         }
 
         try {
+            // Handle icon upload if provided
+            if ($request->hasFile('icon')) {
+                $iconUrl               = $this->imageUploadService->uploadImage($request->file('icon'), 'category');
+                $validated['icon_url'] = $iconUrl;
+            }
+
             Category::create([
-                'name_en' => $request->name_en,
-                'name_ar' => $request->name_ar,
-                'slug' => $slug,
-                'icon_url' => $request->icon_url,
-                'status' => $request->status,
+                'name_en'   => $validated['name_en'],
+                'name_ar'   => $validated['name_ar'],
+                'slug'      => $slug,
+                'icon_url'  => $validated['icon_url'] ?? null,
+                'icon_name' => $request->input('icon_name'),
+                'status'    => $validated['status'],
             ]);
 
             return redirect()->route('categories.index')
                 ->with('success', 'Category created successfully.');
-        } catch (QueryException $e) {
-            if ($e->getCode() == 23505) { // Unique constraint violation
-                return back()->withErrors(['name_en' => 'A category with this name already exists.']);
-            }
-            return back()->withErrors(['error' => 'An error occurred while creating the category.']);
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to create category: ' . $e->getMessage()]);
         }
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Category $category)
-    {
-        return Inertia::render('admin/master-module/categories/show', [
-            'category' => $category,
-        ]);
     }
 
     /**
@@ -101,7 +120,7 @@ class CategoriesController extends Controller
      */
     public function edit(Category $category)
     {
-        return Inertia::render('admin/master-module/categories/edit', [
+        return Inertia::render('admin/categories/edit', [
             'category' => $category,
         ]);
     }
@@ -111,11 +130,11 @@ class CategoriesController extends Controller
      */
     public function update(Request $request, Category $category)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name_en' => 'required|string|max:255',
             'name_ar' => 'required|string|max:255',
-            'icon_url' => 'nullable|string|max:255',
-            'status' => 'required|in:active,inactive',
+            'icon'    => 'nullable|mimes:jpg,jpeg,png,webp,svg,svgz|max:10240',
+            'status'  => 'required|in:active,inactive',
         ]);
 
         $slug = Str::slug($request->name_en);
@@ -126,20 +145,32 @@ class CategoriesController extends Controller
         }
 
         try {
+            // Handle icon upload if provided
+            if ($request->hasFile('icon')) {
+                // Delete old icon if exists
+                if ($category->icon_url) {
+                    $this->imageUploadService->deleteImage($category->icon_url);
+                }
+
+                $iconUrl               = $this->imageUploadService->uploadImage($request->file('icon'), 'category');
+                $validated['icon_url'] = $iconUrl;
+            } else {
+                // Keep existing icon_url if no new file uploaded
+                $validated['icon_url'] = $category->icon_url;
+            }
+
             $category->update([
-                'name_en' => $request->name_en,
-                'name_ar' => $request->name_ar,
-                'slug' => $slug,
-                'icon_url' => $request->icon_url,
-                'status' => $request->status,
+                'name_en'   => $validated['name_en'],
+                'name_ar'   => $validated['name_ar'],
+                'slug'      => $slug,
+                'icon_url'  => $validated['icon_url'],
+                'icon_name' => $request->input('icon_name', $category->icon_name),
+                'status'    => $validated['status'],
             ]);
 
             return redirect()->route('categories.index')
                 ->with('success', 'Category updated successfully.');
-        } catch (QueryException $e) {
-            if ($e->getCode() == 23505) { // Unique constraint violation
-                return back()->withErrors(['name_en' => 'A category with this name already exists.']);
-            }
+        } catch (\Exception $e) {
             return back()->withErrors(['error' => 'An error occurred while updating the category.']);
         }
     }
@@ -154,6 +185,11 @@ class CategoriesController extends Controller
             return back()->withErrors(['category' => 'Cannot delete category that is being used by ads.']);
         }
 
+        // Delete icon from S3 if exists
+        if ($category->icon_url) {
+            $this->imageUploadService->deleteImage($category->icon_url);
+        }
+
         $category->delete();
 
         return redirect()->route('categories.index')
@@ -166,7 +202,7 @@ class CategoriesController extends Controller
     public function toggle(Category $category)
     {
         $category->update([
-            'status' => $category->status === 'active' ? 'inactive' : 'active'
+            'status' => $category->status === 'active' ? 'inactive' : 'active',
         ]);
 
         return back()->with('success', 'Category status updated successfully.');

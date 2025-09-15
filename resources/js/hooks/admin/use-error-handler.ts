@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 
 interface ErrorHandlerProps {
     onError?: (errors: any) => void;
@@ -12,10 +12,10 @@ export function useErrorHandler({ onError }: ErrorHandlerProps = {}) {
         if (errors && Object.keys(errors).length > 0) {
             const errorMessages = Object.values(errors).flat();
             const errorMessage = errorMessages.join(', ');
-            
+
             // Show error dialog
             showErrorDialog('Validation Error', errorMessage);
-            
+
             // Call custom error handler if provided
             onError?.(errors);
         }
@@ -34,7 +34,7 @@ function showErrorDialog(title: string, message: string) {
 
     // Create error dialog element
     const dialog = document.createElement('div');
-    dialog.className = 'error-dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+    dialog.className = 'error-dialog-overlay fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-black/30';
     dialog.innerHTML = `
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div class="p-6">

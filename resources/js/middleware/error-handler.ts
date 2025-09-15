@@ -5,7 +5,7 @@ export function setupGlobalErrorHandler() {
         if (event.detail?.response?.status && event.detail.response.status !== 200) {
             const response = event.detail.response;
             let errorMessage = 'An error occurred';
-            
+
             if (response.data?.message) {
                 errorMessage = response.data.message;
             } else if (response.data?.errors) {
@@ -34,12 +34,12 @@ export function setupGlobalErrorHandler() {
     window.fetch = async (...args) => {
         try {
             const response = await originalFetch(...args);
-            
+
             // Check if response is not ok and it's an admin route
             if (!response.ok && args[0] && typeof args[0] === 'string' && args[0].includes('/admin/')) {
                 const errorData = await response.json().catch(() => ({}));
                 let errorMessage = 'An error occurred';
-                
+
                 if (errorData.message) {
                     errorMessage = errorData.message;
                 } else if (errorData.errors) {
@@ -58,7 +58,7 @@ export function setupGlobalErrorHandler() {
 
                 showErrorDialog('Error', errorMessage);
             }
-            
+
             return response;
         } catch (error) {
             console.error('Fetch Error:', error);
@@ -72,7 +72,7 @@ export function setupGlobalErrorHandler() {
 function showErrorDialog(title: string, message: string) {
     // Create error dialog element
     const dialog = document.createElement('div');
-    dialog.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+    dialog.className = 'error-dialog-overlay fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-black/30';
     dialog.innerHTML = `
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div class="p-6">

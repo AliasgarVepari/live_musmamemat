@@ -14,17 +14,7 @@ import {
 import { dashboard } from '@/routes/admin';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { 
-    BookOpen, 
-    Folder, 
-    LayoutGrid, 
-    Settings, 
-    Link as LinkIcon, 
-    MapPin, 
-    Tag, 
-    DollarSign,
-    Grid3X3
-} from 'lucide-react';
+import { BookOpen, DollarSign, Folder, Grid3X3, LayoutGrid, Link as LinkIcon, MapPin, Settings, Tag } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -32,6 +22,11 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Categories',
+        href: '/admin/categories',
+        icon: Grid3X3,
     },
 ];
 
@@ -60,11 +55,6 @@ const collapsibleNavItems = [
                 title: 'Price Types',
                 href: '/admin/price-types',
                 icon: DollarSign,
-            },
-            {
-                title: 'Categories',
-                href: '/admin/categories',
-                icon: Grid3X3,
             },
         ],
     },
@@ -99,10 +89,8 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
+                <NavMainCollapsible items={collapsibleNavItems} />
                 <NavMain items={mainNavItems} />
-                <div className="mt-2">
-                    <NavMainCollapsible items={collapsibleNavItems} />
-                </div>
             </SidebarContent>
 
             <SidebarFooter>

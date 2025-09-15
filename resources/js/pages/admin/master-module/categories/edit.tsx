@@ -1,20 +1,15 @@
-import { Head, useForm } from '@inertiajs/react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
 import { Button } from '@/components/admin/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
 import { Input } from '@/components/admin/ui/input';
-import { Label } from '@/components/admin/ui/label';
 import { InputError } from '@/components/admin/ui/input-error';
-import { ArrowLeft, Tag } from 'lucide-react';
-import { Link as InertiaLink } from '@inertiajs/react';
+import { Label } from '@/components/admin/ui/label';
+import { useErrorHandler } from '@/hooks/admin/use-error-handler';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { useErrorHandler } from '@/hooks/admin/use-error-handler';
+import { Head, Link as InertiaLink, useForm } from '@inertiajs/react';
+import { ArrowLeft, Tag } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Master Module',
-        href: '/admin/master',
-    },
     {
         title: 'Categories',
         href: '/admin/categories',
@@ -117,7 +112,7 @@ export default function EditCategory({ category }: EditCategoryProps) {
             <>
                 <Head title="Edit Category" />
 
-                <div className="space-y-6">
+                <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
                     {/* Header */}
                     <div className="flex items-center space-x-4">
                         <Button variant="ghost" size="sm" asChild>
@@ -127,9 +122,7 @@ export default function EditCategory({ category }: EditCategoryProps) {
                         </Button>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Edit Category</h1>
-                            <p className="text-muted-foreground">
-                                Update category information
-                            </p>
+                            <p className="text-muted-foreground">Update category information</p>
                         </div>
                     </div>
 
@@ -140,9 +133,7 @@ export default function EditCategory({ category }: EditCategoryProps) {
                                 <Tag className="mr-2 h-5 w-5" />
                                 Category Information
                             </CardTitle>
-                            <CardDescription>
-                                Update the category details below
-                            </CardDescription>
+                            <CardDescription>Update the category details below</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleSubmit} className="space-y-6">
@@ -196,7 +187,7 @@ export default function EditCategory({ category }: EditCategoryProps) {
                                             id="status"
                                             value={data.status}
                                             onChange={(e) => setData('status', e.target.value as 'active' | 'inactive')}
-                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <option value="active">Active</option>
                                             <option value="inactive">Inactive</option>
@@ -207,19 +198,10 @@ export default function EditCategory({ category }: EditCategoryProps) {
 
                                 {/* Submit Buttons */}
                                 <div className="flex justify-end space-x-4">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        asChild
-                                    >
-                                        <InertiaLink href="/admin/categories">
-                                            Cancel
-                                        </InertiaLink>
+                                    <Button type="button" variant="outline" asChild>
+                                        <InertiaLink href="/admin/categories">Cancel</InertiaLink>
                                     </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
+                                    <Button type="submit" disabled={processing}>
                                         {processing ? 'Updating...' : 'Update Category'}
                                     </Button>
                                 </div>

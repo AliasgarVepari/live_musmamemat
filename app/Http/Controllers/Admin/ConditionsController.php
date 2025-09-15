@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -15,7 +14,7 @@ class ConditionsController extends Controller
      */
     public function index(Request $request): Response
     {
-        $query = Condition::orderBy('sort_order')->orderBy('name_en');
+        $query = Condition::orderBy('name_en');
 
         // Filter by status if provided
         if ($request->has('status') && $request->status !== '') {
@@ -26,7 +25,7 @@ class ConditionsController extends Controller
 
         return Inertia::render('admin/master-module/conditions/index', [
             'conditions' => $conditions,
-            'filters' => [
+            'filters'    => [
                 'status' => $request->status,
             ],
         ]);
@@ -46,10 +45,9 @@ class ConditionsController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name_en' => 'required|string|max:255',
-            'name_ar' => 'required|string|max:255',
+            'name_en'   => 'required|string|max:255',
+            'name_ar'   => 'required|string|max:255',
             'is_active' => 'boolean',
-            'sort_order' => 'integer|min:0',
         ]);
 
         // Generate slug from English name
@@ -62,11 +60,10 @@ class ConditionsController extends Controller
 
         try {
             Condition::create([
-                'name_en' => $request->name_en,
-                'name_ar' => $request->name_ar,
-                'slug' => $slug,
+                'name_en'   => $request->name_en,
+                'name_ar'   => $request->name_ar,
+                'slug'      => $slug,
                 'is_active' => $request->boolean('is_active', true),
-                'sort_order' => $request->sort_order ?? 0,
             ]);
 
             return redirect()->route('conditions.index')
@@ -95,21 +92,19 @@ class ConditionsController extends Controller
     public function update(Request $request, Condition $condition)
     {
         $request->validate([
-            'name_en' => 'required|string|max:255',
-            'name_ar' => 'required|string|max:255',
+            'name_en'   => 'required|string|max:255',
+            'name_ar'   => 'required|string|max:255',
             'is_active' => 'boolean',
-            'sort_order' => 'integer|min:0',
         ]);
 
         // Generate slug from English name
         $slug = \Str::slug($request->name_en);
 
         $condition->update([
-            'name_en' => $request->name_en,
-            'name_ar' => $request->name_ar,
-            'slug' => $slug,
+            'name_en'   => $request->name_en,
+            'name_ar'   => $request->name_ar,
+            'slug'      => $slug,
             'is_active' => $request->boolean('is_active', true),
-            'sort_order' => $request->sort_order ?? 0,
         ]);
 
         return redirect()->route('conditions.index')
@@ -137,27 +132,9 @@ class ConditionsController extends Controller
      */
     public function toggle(Condition $condition)
     {
-        $condition->update(['is_active' => !$condition->is_active]);
+        $condition->update(['is_active' => ! $condition->is_active]);
 
         return back()->with('success', 'Condition status updated successfully.');
     }
 
-    /**
-     * Update the sort order of conditions
-     */
-    public function updateOrder(Request $request)
-    {
-        $request->validate([
-            'conditions' => 'required|array',
-            'conditions.*.id' => 'required|integer|exists:conditions,id',
-            'conditions.*.sort_order' => 'required|integer|min:0',
-        ]);
-
-        foreach ($request->conditions as $conditionData) {
-            Condition::where('id', $conditionData['id'])
-                ->update(['sort_order' => $conditionData['sort_order']]);
-        }
-
-        return back()->with('success', 'Sort order updated successfully.');
-    }
 }

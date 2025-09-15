@@ -1,22 +1,11 @@
-import { StatsCard } from '@/components/admin/stats-card';
-import { RecentActivity } from '@/components/admin/recent-activity';
 import { DashboardCharts } from '@/components/admin/dashboard-charts';
+import { RecentActivity } from '@/components/admin/recent-activity';
+import { StatsCard } from '@/components/admin/stats-card';
 import AppLayout from '@/layouts/admin/app-layout';
 import { dashboard } from '@/routes/admin';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { 
-    Users, 
-    ShoppingBag, 
-    DollarSign, 
-    Image, 
-    Link, 
-    TrendingUp,
-    AlertCircle,
-    CheckCircle,
-    XCircle,
-    Star
-} from 'lucide-react';
+import { AlertCircle, DollarSign, Image, Link, ShoppingBag, Star, Users } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -104,11 +93,11 @@ export default function Dashboard({ stats, recent_activity, charts }: DashboardP
                             icon={Users}
                             trend={{
                                 value: stats.users.growth,
-                                isPositive: stats.users.growth >= 0
+                                isPositive: stats.users.growth >= 0,
                             }}
                             badge={{
                                 text: `${stats.users.active} subscribed`,
-                                variant: 'default'
+                                variant: 'default',
                             }}
                         />
                         <StatsCard
@@ -118,7 +107,7 @@ export default function Dashboard({ stats, recent_activity, charts }: DashboardP
                             icon={ShoppingBag}
                             badge={{
                                 text: `${stats.ads.pending} pending`,
-                                variant: 'outline'
+                                variant: 'outline',
                             }}
                         />
                         <StatsCard
@@ -128,7 +117,7 @@ export default function Dashboard({ stats, recent_activity, charts }: DashboardP
                             icon={DollarSign}
                             trend={{
                                 value: stats.revenue.growth,
-                                isPositive: stats.revenue.growth >= 0
+                                isPositive: stats.revenue.growth >= 0,
                             }}
                         />
                         <StatsCard
@@ -141,12 +130,7 @@ export default function Dashboard({ stats, recent_activity, charts }: DashboardP
 
                     {/* Secondary Stats */}
                     <div className="grid gap-4 md:grid-cols-3">
-                        <StatsCard
-                            title="Banners"
-                            value={stats.banners.total}
-                            subtitle={`${stats.banners.active} active`}
-                            icon={Image}
-                        />
+                        <StatsCard title="Banners" value={stats.banners.total} subtitle={`${stats.banners.active} active`} icon={Image} />
                         <StatsCard
                             title="Social Links"
                             value={stats.social_links.total}
@@ -161,18 +145,11 @@ export default function Dashboard({ stats, recent_activity, charts }: DashboardP
                         />
                     </div>
 
-
                     {/* Charts */}
-                    <DashboardCharts 
-                        adTrends={charts.ad_trends}
-                        topCategories={charts.top_categories}
-                    />
+                    <DashboardCharts adTrends={charts.ad_trends} topCategories={charts.top_categories} />
 
                     {/* Recent Activity */}
-                    <RecentActivity 
-                        ads={recent_activity.ads}
-                        users={recent_activity.users}
-                    />
+                    <RecentActivity ads={recent_activity.ads} users={recent_activity.users} />
                 </div>
             </>
         </AppLayout>

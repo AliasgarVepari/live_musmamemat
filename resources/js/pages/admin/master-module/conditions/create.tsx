@@ -1,17 +1,16 @@
-import { Head } from '@inertiajs/react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import InputError from '@/components/admin/input-error';
 import { Button } from '@/components/admin/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { ErrorDialog } from '@/components/admin/ui/error-dialog';
 import { Input } from '@/components/admin/ui/input';
 import { Label } from '@/components/admin/ui/label';
 import { Switch } from '@/components/admin/ui/switch';
-import InputError from '@/components/admin/input-error';
-import { ArrowLeft, Tag, Plus } from 'lucide-react';
-import { Link as InertiaLink, useForm } from '@inertiajs/react';
+import { useErrorHandler } from '@/hooks/admin/use-error-handler';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { ErrorDialog } from '@/components/admin/ui/error-dialog';
-import { useState, useEffect } from 'react';
-import { useErrorHandler } from '@/hooks/admin/use-error-handler';
+import { Head, Link as InertiaLink, useForm } from '@inertiajs/react';
+import { ArrowLeft, Plus, Tag } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -32,7 +31,7 @@ export default function CreateCondition() {
     const [errorDialog, setErrorDialog] = useState({
         open: false,
         title: '',
-        message: ''
+        message: '',
     });
 
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -115,15 +114,13 @@ export default function CreateCondition() {
                     <div className="flex items-center space-x-4">
                         <InertiaLink href="/admin/conditions">
                             <Button variant="ghost" size="sm">
-                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                <ArrowLeft className="mr-2 h-4 w-4" />
                                 Back
                             </Button>
                         </InertiaLink>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Create Product Condition</h1>
-                            <p className="text-muted-foreground">
-                                Add a new product condition option
-                            </p>
+                            <p className="text-muted-foreground">Add a new product condition option</p>
                         </div>
                     </div>
 
@@ -132,12 +129,10 @@ export default function CreateCondition() {
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center">
-                                    <Tag className="h-5 w-5 mr-2" />
+                                    <Tag className="mr-2 h-5 w-5" />
                                     Condition Details
                                 </CardTitle>
-                                <CardDescription>
-                                    Fill in the details to create a new product condition
-                                </CardDescription>
+                                <CardDescription>Fill in the details to create a new product condition</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -169,20 +164,6 @@ export default function CreateCondition() {
                                         <InputError message={errors.name_ar} />
                                     </div>
 
-                                    {/* Sort Order */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="sort_order">Sort Order</Label>
-                                        <Input
-                                            id="sort_order"
-                                            type="number"
-                                            min="0"
-                                            value={data.sort_order}
-                                            onChange={(e) => setData('sort_order', parseInt(e.target.value) || 0)}
-                                            placeholder="0"
-                                        />
-                                        <InputError message={errors.sort_order} />
-                                    </div>
-
                                     {/* Active Status */}
                                     <div className="flex items-center space-x-2">
                                         <Switch
@@ -198,12 +179,12 @@ export default function CreateCondition() {
                                         <Button type="submit" disabled={processing}>
                                             {processing ? (
                                                 <>
-                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
                                                     Creating...
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    <Plus className="mr-2 h-4 w-4" />
                                                     Create Condition
                                                 </>
                                             )}
@@ -222,7 +203,7 @@ export default function CreateCondition() {
             </>
             <ErrorDialog
                 open={errorDialog.open}
-                onOpenChange={(open) => setErrorDialog(prev => ({ ...prev, open }))}
+                onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
                 title={errorDialog.title}
                 message={errorDialog.message}
             />

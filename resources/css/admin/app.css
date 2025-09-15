@@ -258,7 +258,7 @@
 
     /* Common Admin Component Styles */
     .admin-page-container {
-        @apply min-h-screen bg-background;
+        @apply bg-background min-h-screen;
     }
 
     .admin-content-wrapper {
@@ -266,7 +266,7 @@
     }
 
     .admin-card {
-        @apply rounded-lg border bg-card text-card-foreground shadow-sm;
+        @apply bg-card text-card-foreground rounded-lg border shadow-sm;
     }
 
     .admin-card-header {
@@ -278,7 +278,7 @@
     }
 
     .admin-card-description {
-        @apply text-sm text-muted-foreground;
+        @apply text-muted-foreground text-sm;
     }
 
     .admin-card-content {
@@ -286,19 +286,19 @@
     }
 
     .admin-button-primary {
-        @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2;
+        @apply ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
     }
 
     .admin-button-secondary {
-        @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2;
+        @apply ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-10 items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
     }
 
     .admin-button-destructive {
-        @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-10 px-4 py-2;
+        @apply ring-offset-background focus-visible:ring-ring bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
     }
 
     .admin-input {
-        @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+        @apply border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
     }
 
     .admin-table {
@@ -314,11 +314,11 @@
     }
 
     .admin-table-row {
-        @apply border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted;
+        @apply hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors;
     }
 
     .admin-table-head {
-        @apply h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0;
+        @apply text-muted-foreground h-12 px-4 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0;
     }
 
     .admin-table-cell {
@@ -326,19 +326,19 @@
     }
 
     .admin-badge {
-        @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+        @apply focus:ring-ring inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
     }
 
     .admin-badge-default {
-        @apply border-transparent bg-primary text-primary-foreground hover:bg-primary/80;
+        @apply bg-primary text-primary-foreground hover:bg-primary/80 border-transparent;
     }
 
     .admin-badge-secondary {
-        @apply border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80;
+        @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 border-transparent;
     }
 
     .admin-badge-destructive {
-        @apply border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80;
+        @apply bg-destructive text-destructive-foreground hover:bg-destructive/80 border-transparent;
     }
 
     .admin-badge-outline {
@@ -346,7 +346,7 @@
     }
 
     .admin-alert {
-        @apply relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground;
+        @apply [&>svg]:text-foreground relative w-full rounded-lg border p-4 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7;
     }
 
     .admin-alert-destructive {
@@ -354,11 +354,11 @@
     }
 
     .admin-skeleton {
-        @apply animate-pulse rounded-md bg-muted;
+        @apply bg-muted animate-pulse rounded-md;
     }
 
     .admin-separator {
-        @apply shrink-0 bg-border;
+        @apply bg-border shrink-0;
     }
 
     .admin-separator-horizontal {
@@ -368,4 +368,27 @@
     .admin-separator-vertical {
         @apply h-full w-[1px];
     }
+}
+
+/* Error dialog overlay: ensure blur even if utility classes get purged */
+.error-dialog-overlay {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(17, 24, 39, 0.3);
+}
+
+/* Error dialog animations */
+.error-dialog-overlay.fade-out {
+    animation: fadeOut 0.2s ease-in forwards;
+}
+
+.error-dialog-content.slide-out {
+    animation: slideOut 0.2s ease-in forwards;
+}
+
+/* Admin unified radio accent color */
+.admin-page-container input[type='radio'],
+input[type='radio'].admin-accent,
+.admin-content-wrapper input[type='radio'] {
+    accent-color: #16a34a; /* green-600 */
 }
