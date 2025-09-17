@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes/admin';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Crown, DollarSign, Folder, Grid3X3, LayoutGrid, Link as LinkIcon, MapPin, Settings, Tag, Users } from 'lucide-react';
+import { BookOpen, Crown, DollarSign, Folder, Grid3X3, LayoutGrid, Link as LinkIcon, MapPin, Settings, Tag, Users, Megaphone } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -22,6 +22,11 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Ads',
+        href: '/admin/ads',
+        icon: Megaphone,
     },
     {
         title: 'Users',
@@ -104,7 +109,7 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                {/* <NavFooter items={footerNavItems} className="mt-auto" /> */}
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

@@ -18,15 +18,17 @@ interface SubscriptionPlan {
     slug: string;
     description_en: string;
     description_ar: string;
-    price: number;
-    billing_cycle: 'monthly' | 'yearly';
+    price: number | string;
+    months_count: number;
+    is_lifetime: boolean;
+    readable_billing_cycle: string | null;
     ad_limit: number;
     featured_ads: number;
     featured_ads_count: number | null;
     has_unlimited_featured_ads: boolean;
     priority_support: boolean;
     analytics: boolean;
-    status: 'active' | 'suspended';
+    status: 'active' | 'inactive' | 'delete';
     created_at: string;
     updated_at: string;
 }
@@ -43,8 +45,9 @@ export default function EditSubscriptionPlan({ plan }: EditSubscriptionPlanProps
         name_ar: plan.name_ar,
         description_en: plan.description_en,
         description_ar: plan.description_ar,
-        price: plan.price.toString(),
-        billing_cycle: plan.billing_cycle,
+        price: typeof plan.price === 'string' ? plan.price : plan.price.toString(),
+        months_count: plan.months_count,
+        is_lifetime: plan.is_lifetime,
         ad_limit: plan.ad_limit.toString(),
         featured_ads: plan.featured_ads.toString(),
         has_unlimited_featured_ads: plan.has_unlimited_featured_ads,
@@ -125,28 +128,43 @@ export default function EditSubscriptionPlan({ plan }: EditSubscriptionPlanProps
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="billing_cycle">Billing Cycle *</Label>
-                                        <Select value={data.billing_cycle} onValueChange={(value: 'monthly' | 'yearly') => setData('billing_cycle', value)}>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="monthly">Monthly</SelectItem>
-                                                <SelectItem value="yearly">Yearly</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <InputError message={errors.billing_cycle} />
+                                        <Label htmlFor="is_lifetime">Lifetime Subscription</Label>
+                                        <div className="flex items-center space-x-2">
+                                            <Switch
+                                                id="is_lifetime"
+                                                checked={data.is_lifetime}
+                                                onCheckedChange={(checked) => setData('is_lifetime', checked)}
+                                            />
+                                            <Label htmlFor="is_lifetime">This is a lifetime subscription</Label>
+                                        </div>
+                                        <InputError message={errors.is_lifetime} />
                                     </div>
+
+                                    {!data.is_lifetime && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="months_count">Duration (Months) *</Label>
+                                            <Input
+                                                id="months_count"
+                                                type="number"
+                                                min="1"
+                                                value={data.months_count}
+                                                onChange={(e) => setData('months_count', parseInt(e.target.value) || 1)}
+                                                placeholder="Enter number of months"
+                                            />
+                                            <InputError message={errors.months_count} />
+                                        </div>
+                                    )}
 
                                     <div className="space-y-2">
                                         <Label htmlFor="status">Status *</Label>
-                                        <Select value={data.status} onValueChange={(value: 'active' | 'suspended') => setData('status', value)}>
+                                        <Select value={data.status} onValueChange={(value: 'active' | 'inactive' | 'delete') => setData('status', value)}>
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="active">Active</SelectItem>
-                                                <SelectItem value="suspended">Suspended</SelectItem>
+                                                <SelectItem value="inactive">Suspended</SelectItem>
+                                                <SelectItem value="delete">Deleted</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <InputError message={errors.status} />

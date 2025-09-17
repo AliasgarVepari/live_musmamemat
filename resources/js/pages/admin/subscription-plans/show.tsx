@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/admin/app-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
@@ -28,14 +29,16 @@ interface SubscriptionPlan {
     description_en: string;
     description_ar: string;
     price: number | string;
-    billing_cycle: 'monthly' | 'yearly';
+    months_count: number;
+    is_lifetime: boolean;
+    readable_billing_cycle: string | null;
     ad_limit: number;
     featured_ads: number;
     featured_ads_count: number | null;
     has_unlimited_featured_ads: boolean;
     priority_support: boolean;
     analytics: boolean;
-    status: 'active' | 'suspended';
+    status: 'active' | 'inactive' | 'delete';
     created_at: string;
     updated_at: string;
     user_subscriptions: UserSubscription[];
@@ -46,33 +49,31 @@ interface ShowSubscriptionPlanProps {
 }
 
 export default function ShowSubscriptionPlan({ plan }: ShowSubscriptionPlanProps) {
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    
     useErrorHandler();
 
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'active':
                 return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-            case 'suspended':
+            case 'inactive':
                 return <Badge className="bg-orange-100 text-orange-800">Suspended</Badge>;
+            case 'delete':
+                return <Badge className="bg-red-100 text-red-800">Deleted</Badge>;
             default:
                 return <Badge variant="secondary">{status}</Badge>;
         }
     };
 
-    const getBillingCycleBadge = (cycle: string) => {
-        switch (cycle) {
-            case 'monthly':
-                return <Badge variant="outline">Monthly</Badge>;
-            case 'yearly':
-                return <Badge variant="outline">Yearly</Badge>;
-            default:
-                return <Badge variant="secondary">{cycle}</Badge>;
-        }
+    const getBillingCycleBadge = (cycle: string | null) => {
+        return <Badge variant="outline">{cycle || 'Monthly'}</Badge>;
     };
 
-    const formatPrice = (price: number | string, cycle: string) => {
+    const formatPrice = (price: number | string, cycle: string | null) => {
         const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
-        return `$${numericPrice.toFixed(2)}/${cycle === 'monthly' ? 'month' : 'year'}`;
+        const cycleText = cycle ? cycle.toLowerCase() : 'month';
+        return `$${numericPrice.toFixed(2)}/${cycleText}`;
     };
 
     const handleToggleStatus = () => {
@@ -87,12 +88,19 @@ export default function ShowSubscriptionPlan({ plan }: ShowSubscriptionPlanProps
 
     const handleDelete = () => {
         router.delete(`/admin/subscription-plans/${plan.id}`, {
+            onSuccess: () => {
+                setIsDeleteDialogOpen(false);
+            },
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
                 const errorMessage = errorMessages.join(', ');
                 alert(`Error: ${errorMessage}`);
             },
         });
+    };
+
+    const handleCancelDelete = () => {
+        setIsDeleteDialogOpen(false);
     };
 
     const activeSubscriptions = plan.user_subscriptions.filter(sub => sub.is_active).length;
@@ -145,9 +153,9 @@ export default function ShowSubscriptionPlan({ plan }: ShowSubscriptionPlanProps
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                             </Button>
-                            <Dialog>
+                            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                                 <DialogTrigger asChild>
-                                    <Button variant="destructive">
+                                    <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete
                                     </Button>
@@ -160,10 +168,10 @@ export default function ShowSubscriptionPlan({ plan }: ShowSubscriptionPlanProps
                                         </DialogDescription>
                                     </DialogHeader>
                                     <DialogFooter>
-                                        <Button variant="outline">Cancel</Button>
+                                        <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
                                         <Button
+                                            variant="destructive"
                                             onClick={handleDelete}
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                         >
                                             Delete Plan
                                         </Button>
@@ -189,11 +197,11 @@ export default function ShowSubscriptionPlan({ plan }: ShowSubscriptionPlanProps
                                         </div>
                                         <div className="text-right">
                                             <div className="text-3xl font-bold text-primary">
-                                                {formatPrice(plan.price, plan.billing_cycle)}
+                                                {formatPrice(plan.price, plan.readable_billing_cycle)}
                                             </div>
                                             <div className="flex items-center gap-2 mt-2">
                                                 {getStatusBadge(plan.status)}
-                                                {getBillingCycleBadge(plan.billing_cycle)}
+                                                {getBillingCycleBadge(plan.readable_billing_cycle)}
                                             </div>
                                         </div>
                                     </div>

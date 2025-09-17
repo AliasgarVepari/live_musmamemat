@@ -46,6 +46,12 @@ Route::prefix('admin')->group(function () {
         // Subscription Plans Management
         Route::resource('subscription-plans', App\Http\Controllers\Admin\SubscriptionPlansController::class);
         Route::patch('subscription-plans/{subscriptionPlan}/toggle', [App\Http\Controllers\Admin\SubscriptionPlansController::class, 'toggleStatus'])->name('subscription-plans.toggle');
+
+        // Ads Management
+        Route::resource('ads', App\Http\Controllers\Admin\AdController::class);
+        Route::patch('ads/{ad}/toggle-status', [App\Http\Controllers\Admin\AdController::class, 'toggleStatus'])->name('ads.toggle-status');
+        Route::patch('ads/{ad}/toggle-featured', [App\Http\Controllers\Admin\AdController::class, 'toggleFeatured'])->name('ads.toggle-featured');
+        Route::patch('ads/{ad}/toggle-approval', [App\Http\Controllers\Admin\AdController::class, 'toggleApproval'])->name('ads.toggle-approval');
     });
     require __DIR__ . '/auth.php';
     require __DIR__ . '/settings.php';

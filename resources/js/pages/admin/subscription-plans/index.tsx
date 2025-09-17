@@ -16,14 +16,16 @@ interface SubscriptionPlan {
     description_en: string;
     description_ar: string;
     price: number | string;
-    billing_cycle: 'monthly' | 'yearly';
+    months_count: number;
+    is_lifetime: boolean;
+    readable_billing_cycle: string | null;
     ad_limit: number;
     featured_ads: number;
     featured_ads_count: number | null;
     has_unlimited_featured_ads: boolean;
     priority_support: boolean;
     analytics: boolean;
-    status: 'active' | 'suspended';
+    status: 'active' | 'inactive' | 'delete';
     created_at: string;
     updated_at: string;
     user_subscriptions_count?: number;
@@ -35,6 +37,7 @@ interface SubscriptionPlansIndexProps {
 
 export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndexProps) {
     const [deletingPlan, setDeletingPlan] = useState<number | null>(null);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     useErrorHandler();
 
@@ -42,27 +45,23 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
         switch (status) {
             case 'active':
                 return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-            case 'suspended':
+            case 'inactive':
                 return <Badge className="bg-orange-100 text-orange-800">Suspended</Badge>;
+            case 'delete':
+                return <Badge className="bg-red-100 text-red-800">Deleted</Badge>;
             default:
                 return <Badge variant="secondary">{status}</Badge>;
         }
     };
 
-    const getBillingCycleBadge = (cycle: string) => {
-        switch (cycle) {
-            case 'monthly':
-                return <Badge variant="outline">Monthly</Badge>;
-            case 'yearly':
-                return <Badge variant="outline">Yearly</Badge>;
-            default:
-                return <Badge variant="secondary">{cycle}</Badge>;
-        }
+    const getBillingCycleBadge = (cycle: string | null) => {
+        return <Badge variant="outline">{cycle || 'Monthly'}</Badge>;
     };
 
-    const formatPrice = (price: number | string, cycle: string) => {
+    const formatPrice = (price: number | string, cycle: string | null) => {
         const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
-        return `$${numericPrice.toFixed(2)}/${cycle === 'monthly' ? 'month' : 'year'}`;
+        const cycleText = cycle ? cycle.toLowerCase() : 'month';
+        return `$${numericPrice.toFixed(2)}/${cycleText}`;
     };
 
     const handleToggleStatus = (planId: number) => {
@@ -77,11 +76,21 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
 
     const handleDelete = (planId: number) => {
         setDeletingPlan(planId);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleCancelDelete = () => {
+        setIsDeleteDialogOpen(false);
+        setDeletingPlan(null);
     };
 
     const confirmDelete = () => {
         if (deletingPlan) {
             router.delete(`/admin/subscription-plans/${deletingPlan}`, {
+                onSuccess: () => {
+                    setIsDeleteDialogOpen(false);
+                    setDeletingPlan(null);
+                },
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
@@ -89,7 +98,6 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
                 },
             });
         }
-        setDeletingPlan(null);
     };
 
     return (
@@ -120,112 +128,116 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
                                         <CardTitle className="text-xl">{plan.name_en}</CardTitle>
                                         <div className="flex items-center gap-2">
                                             {getStatusBadge(plan.status)}
-                                            {getBillingCycleBadge(plan.billing_cycle)}
+                                            {getBillingCycleBadge(plan.readable_billing_cycle)}
                                         </div>
                                     </div>
                                     <div className="text-3xl font-bold text-primary">
-                                        {formatPrice(plan.price, plan.billing_cycle)}
+                                        {formatPrice(plan.price, plan.readable_billing_cycle)}
                                     </div>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Features */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <Users className="h-4 w-4 text-muted-foreground" />
-                                            <span>{plan.ad_limit} posts allowed</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <Crown className="h-4 w-4 text-muted-foreground" />
-                                            <span>
-                                                {plan.has_unlimited_featured_ads 
-                                                    ? 'Unlimited featured posts' 
-                                                    : `${plan.featured_ads_count || plan.featured_ads} featured posts`
-                                                }
-                                            </span>
-                                        </div>
-                                        {plan.analytics && (
+                                <CardContent className="flex flex-col h-full">
+                                    <div className="flex-1 space-y-4">
+                                        {/* Features */}
+                                        <div className="space-y-2">
                                             <div className="flex items-center gap-2 text-sm">
-                                                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                                                <span>Analytics access</span>
+                                                <Users className="h-4 w-4 text-muted-foreground" />
+                                                <span>{plan.ad_limit} posts allowed</span>
                                             </div>
-                                        )}
-                                        {plan.priority_support && (
                                             <div className="flex items-center gap-2 text-sm">
-                                                <Headphones className="h-4 w-4 text-muted-foreground" />
-                                                <span>Priority support</span>
+                                                <Crown className="h-4 w-4 text-muted-foreground" />
+                                                <span>
+                                                    {plan.has_unlimited_featured_ads 
+                                                        ? 'Unlimited featured posts' 
+                                                        : `${plan.featured_ads_count || plan.featured_ads} featured posts`
+                                                    }
+                                                </span>
                                             </div>
-                                        )}
+                                            {plan.analytics && (
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                                                    <span>Analytics access</span>
+                                                </div>
+                                            )}
+                                            {plan.priority_support && (
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <Headphones className="h-4 w-4 text-muted-foreground" />
+                                                    <span>Priority support</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Description */}
+                                        <p className="text-sm text-muted-foreground line-clamp-3">
+                                            {plan.description_en}
+                                        </p>
                                     </div>
 
-                                    {/* Description */}
-                                    <p className="text-sm text-muted-foreground line-clamp-3">
-                                        {plan.description_en}
-                                    </p>
-
-                                    {/* Actions */}
-                                    <div className="flex items-center justify-between pt-4">
-                                        <div className="flex items-center gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => router.get(`/admin/subscription-plans/${plan.id}`)}
-                                            >
-                                                <Eye className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => router.get(`/admin/subscription-plans/${plan.id}/edit`)}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleToggleStatus(plan.id)}
-                                                className={plan.status === 'active' ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'}
-                                            >
-                                                {plan.status === 'active' ? (
-                                                    <ToggleLeft className="h-4 w-4" />
-                                                ) : (
-                                                    <ToggleRight className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleDelete(plan.id)}
-                                                        className="text-destructive hover:text-destructive"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Delete Subscription Plan</DialogTitle>
-                                                        <DialogDescription>
-                                                            Are you sure you want to delete "{plan.name_en}"? This action will revoke all active subscriptions for this plan and cannot be undone.
-                                                        </DialogDescription>
-                                                    </DialogHeader>
-                                                    <DialogFooter>
-                                                        <Button variant="outline">Cancel</Button>
+                                    {/* Actions and Subscriber Count - Always at bottom */}
+                                    <div className="mt-auto pt-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => router.get(`/admin/subscription-plans/${plan.id}`)}
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => router.get(`/admin/subscription-plans/${plan.id}/edit`)}
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleToggleStatus(plan.id)}
+                                                    className={plan.status === 'inactive' ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'}
+                                                >
+                                                    {plan.status === 'active' ? (
+                                                        <ToggleRight className="h-4 w-4" />
+                                                    ) : (
+                                                        <ToggleLeft className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                                <Dialog open={isDeleteDialogOpen && deletingPlan === plan.id} onOpenChange={setIsDeleteDialogOpen}>
+                                                    <DialogTrigger asChild>
                                                         <Button
-                                                            onClick={confirmDelete}
-                                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleDelete(plan.id)}
+                                                            className="text-destructive hover:text-destructive"
                                                         >
-                                                            Delete Plan
+                                                            <Trash2 className="h-4 w-4" />
                                                         </Button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
-                                        </div>
-                                        {plan.user_subscriptions_count !== undefined && (
-                                            <div className="text-xs text-muted-foreground">
-                                                {plan.user_subscriptions_count} subscribers
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Delete Subscription Plan</DialogTitle>
+                                                            <DialogDescription>
+                                                                Are you sure you want to delete "{plan.name_en}"? This action will revoke all active subscriptions for this plan and cannot be undone.
+                                                            </DialogDescription>
+                                                        </DialogHeader>
+                                                        <DialogFooter>
+                                                            <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
+                                                            <Button
+                                                                variant="destructive"
+                                                                onClick={confirmDelete}
+                                                            >
+                                                                Delete Plan
+                                                            </Button>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
                                             </div>
-                                        )}
+                                            {plan.user_subscriptions_count !== undefined && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    {plan.user_subscriptions_count} subscribers
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>

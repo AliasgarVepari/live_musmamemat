@@ -20,13 +20,14 @@ export default function CreateSubscriptionPlan() {
         description_en: '',
         description_ar: '',
         price: '',
-        billing_cycle: 'monthly' as 'monthly' | 'yearly',
+        months_count: 1,
+        is_lifetime: false,
         ad_limit: '',
         featured_ads: '',
         has_unlimited_featured_ads: false,
         priority_support: false,
         analytics: false,
-        status: 'active' as 'active' | 'suspended',
+        status: 'active' as 'active' | 'inactive' | 'delete',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -101,28 +102,43 @@ export default function CreateSubscriptionPlan() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="billing_cycle">Billing Cycle *</Label>
-                                        <Select value={data.billing_cycle} onValueChange={(value: 'monthly' | 'yearly') => setData('billing_cycle', value)}>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="monthly">Monthly</SelectItem>
-                                                <SelectItem value="yearly">Yearly</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <InputError message={errors.billing_cycle} />
+                                        <Label htmlFor="is_lifetime">Lifetime Subscription</Label>
+                                        <div className="flex items-center space-x-2">
+                                            <Switch
+                                                id="is_lifetime"
+                                                checked={data.is_lifetime}
+                                                onCheckedChange={(checked) => setData('is_lifetime', checked)}
+                                            />
+                                            <Label htmlFor="is_lifetime">This is a lifetime subscription</Label>
+                                        </div>
+                                        <InputError message={errors.is_lifetime} />
                                     </div>
+
+                                    {!data.is_lifetime && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="months_count">Duration (Months) *</Label>
+                                            <Input
+                                                id="months_count"
+                                                type="number"
+                                                min="1"
+                                                value={data.months_count}
+                                                onChange={(e) => setData('months_count', parseInt(e.target.value) || 1)}
+                                                placeholder="Enter number of months"
+                                            />
+                                            <InputError message={errors.months_count} />
+                                        </div>
+                                    )}
 
                                     <div className="space-y-2">
                                         <Label htmlFor="status">Status *</Label>
-                                        <Select value={data.status} onValueChange={(value: 'active' | 'suspended') => setData('status', value)}>
+                                        <Select value={data.status} onValueChange={(value: 'active' | 'inactive' | 'delete') => setData('status', value)}>
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="active">Active</SelectItem>
-                                                <SelectItem value="suspended">Suspended</SelectItem>
+                                                <SelectItem value="inactive">Suspended</SelectItem>
+                                                <SelectItem value="delete">Deleted</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <InputError message={errors.status} />

@@ -10,6 +10,7 @@ class Ad extends Model
     use HasFactory;
 
     protected $fillable = [
+        'id',
         'user_id',
         'category_id',
         'title_en',
@@ -30,6 +31,8 @@ class Ad extends Model
         'is_approved',
         'views_count',
         'contact_count',
+        'created_at',
+        'updated_at',
     ];
 
     protected function casts(): array
@@ -80,6 +83,11 @@ class Ad extends Model
         return $this->hasOne(AdImage::class)->where('is_primary', true);
     }
 
+    public function adImages()
+    {
+        return $this->hasMany(AdImage::class);
+    }
+
     public function views()
     {
         return $this->hasMany(AdView::class);
@@ -90,10 +98,6 @@ class Ad extends Model
         return $this->hasMany(Favorite::class);
     }
 
-    public function contacts()
-    {
-        return $this->hasMany(AdContact::class);
-    }
 
     // Scopes
     public function scopeActive($query)
