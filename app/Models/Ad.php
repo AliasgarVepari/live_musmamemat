@@ -29,6 +29,7 @@ class Ad extends Model
         'is_featured',
         'is_negotiable',
         'is_approved',
+        'reject_reason',
         'views_count',
         'contact_count',
         'created_at',
@@ -46,6 +47,10 @@ class Ad extends Model
             'contact_count' => 'integer',
         ];
     }
+
+    protected $attributes = [
+        'is_approved' => null,
+    ];
 
     // Relationships
     public function user()
@@ -118,5 +123,66 @@ class Ad extends Model
     public function scopeByGovernorate($query, $governorateId)
     {
         return $query->where('governorate_id', $governorateId);
+    }
+
+    // Workflow Methods
+    public function canBeApproved(): bool
+    {
+        return $this->is_approved === null || $this->is_approved === false;
+    }
+
+    public function canBeRejected(): bool
+    {
+        return $this->is_approved === null || $this->is_approved === false;
+    }
+
+    public function canBeActivated(): bool
+    {
+        return in_array($this->status, ['inactive', 'expired', 'delete']);
+    }
+
+    public function canBeDeactivated(): bool
+    {
+        return in_array($this->status, ['active', 'expired']);
+    }
+
+    public function canBeMarkedAsSold(): bool
+    {
+        return $this->status === 'active' && $this->is_approved === true;
+    }
+
+    public function canBeMarkedAsExpired(): bool
+    {
+        return $this->status === 'active' && $this->is_approved === true;
+    }
+
+    public function canBeMarkedAsInactive(): bool
+    {
+        return $this->status === 'active' && $this->is_approved === true;
+    }
+
+    public function canBeDeleted(): bool
+    {
+        return $this->status !== 'sold';
+    }
+
+    public function isInFinalState(): bool
+    {
+        return $this->status === 'sold';
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->status === 'active' && $this->is_approved === null;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->is_approved === true;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->is_approved === false;
     }
 }

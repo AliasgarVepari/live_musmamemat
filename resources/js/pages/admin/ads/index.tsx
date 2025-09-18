@@ -6,6 +6,7 @@ import { Button } from '@/components/admin/ui/button';
 import { Badge } from '@/components/admin/ui/badge';
 import { Input } from '@/components/admin/ui/input';
 import { Label } from '@/components/admin/ui/label';
+import { Textarea } from '@/components/admin/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/admin/ui/dialog';
 import { Switch } from '@/components/admin/ui/switch';
@@ -13,20 +14,32 @@ import {
     Search, 
     Filter, 
     Eye, 
-    Edit, 
     Trash2, 
     ToggleRight, 
     ToggleLeft, 
-    Star, 
     CheckCircle, 
     XCircle,
     DollarSign,
     MapPin,
     Calendar,
     User,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Check,
+    X,
+    ShoppingCart,
+    Clock,
+    Pause,
+    AlertTriangle
 } from 'lucide-react';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
+import { type BreadcrumbItem } from '@/types';
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Ads Management',
+        href: '/admin/ads',
+    },
+];
 
 interface Ad {
     id: number;
@@ -38,7 +51,8 @@ interface Ad {
     status: 'draft' | 'active' | 'inactive' | 'expired' | 'sold' | 'delete';
     is_featured: boolean;
     is_negotiable: boolean;
-    is_approved: boolean;
+    is_approved: boolean | null;
+    reject_reason?: string | null;
     views_count: number;
     contact_count: number;
     created_at: string;
@@ -149,9 +163,16 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
     const [isNegotiable, setIsNegotiable] = useState(filters.is_negotiable || 'all');
     const [minPrice, setMinPrice] = useState(filters.min_price || '');
     const [maxPrice, setMaxPrice] = useState(filters.max_price || '');
-    const [perPage, setPerPage] = useState(filters.per_page || '20');
+    const [perPage, setPerPage] = useState(filters.per_page || '5');
     const [deletingAd, setDeletingAd] = useState<number | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+    const [isInactiveDialogOpen, setIsInactiveDialogOpen] = useState(false);
+    const [rejectingAd, setRejectingAd] = useState<number | null>(null);
+    const [inactivatingAd, setInactivatingAd] = useState<number | null>(null);
+    const [rejectReason, setRejectReason] = useState('');
+    const [inactiveReason, setInactiveReason] = useState('');
+    const [deleteReason, setDeleteReason] = useState('');
 
     useErrorHandler();
 
@@ -222,64 +243,209 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
         return `$${numericPrice.toFixed(2)} ${priceTypeText}`;
     };
 
+    const getApprovalBadge = (ad: Ad) => {
+        if (ad.is_approved === true) {
+            return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
+        } else if (ad.is_approved === false) {
+            return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+        } else {
+            return <Badge className="bg-yellow-100 text-yellow-800">Pending Approval</Badge>;
+        }
+    };
+
     const handleToggleStatus = (adId: number) => {
-        router.patch(`/admin/ads/${adId}/toggle-status`, {}, {
+        const ad = ads.data.find(a => a.id === adId);
+        if (ad && ad.status === 'active') {
+            // If ad is active and we're toggling to inactive, show reason dialog
+            setInactivatingAd(adId);
+            setIsInactiveDialogOpen(true);
+        } else {
+            // For other statuses, directly toggle
+            router.patch(`/admin/ads/${adId}/toggle-status`, {}, {
+                onError: (errors) => {
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    alert(`Error: ${errorMessage}`);
+                },
+                preserveScroll: true,
+            });
+        }
+    };
+
+
+    const handleApprove = (adId: number) => {
+        router.patch(`/admin/ads/${adId}/approve`, {}, {
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
                 const errorMessage = errorMessages.join(', ');
                 alert(`Error: ${errorMessage}`);
             },
+            preserveScroll: true,
         });
     };
 
-    const handleToggleFeatured = (adId: number) => {
-        router.patch(`/admin/ads/${adId}/toggle-featured`, {}, {
-            onError: (errors) => {
-                const errorMessages = Object.values(errors).flat();
-                const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
-            },
-        });
+    const handleReject = (adId: number) => {
+        setRejectingAd(adId);
+        setIsRejectDialogOpen(true);
     };
 
-    const handleToggleApproval = (adId: number) => {
-        router.patch(`/admin/ads/${adId}/toggle-approval`, {}, {
-            onError: (errors) => {
-                const errorMessages = Object.values(errors).flat();
-                const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
-            },
-        });
-    };
-
-    const handleDelete = (adId: number) => {
-        setDeletingAd(adId);
-        setIsDeleteDialogOpen(true);
-    };
-
-    const handleCancelDelete = () => {
-        setIsDeleteDialogOpen(false);
-        setDeletingAd(null);
-    };
-
-    const confirmDelete = () => {
-        if (deletingAd) {
-            router.delete(`/admin/ads/${deletingAd}`, {
+    const confirmReject = () => {
+        if (rejectingAd && rejectReason.trim()) {
+            router.post(`/admin/ads/${rejectingAd}/reject`, {
+                reject_reason: rejectReason
+            }, {
                 onSuccess: () => {
-                    setIsDeleteDialogOpen(false);
-                    setDeletingAd(null);
+                    setIsRejectDialogOpen(false);
+                    setRejectingAd(null);
+                    setRejectReason('');
                 },
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
                     alert(`Error: ${errorMessage}`);
                 },
+                preserveScroll: true,
             });
         }
     };
 
+    const handleMarkAsSold = (adId: number) => {
+        router.patch(`/admin/ads/${adId}/mark-sold`, {}, {
+            onError: (errors) => {
+                const errorMessages = Object.values(errors).flat();
+                const errorMessage = errorMessages.join(', ');
+                alert(`Error: ${errorMessage}`);
+            },
+            preserveScroll: true,
+        });
+    };
+
+    const handleMarkAsExpired = (adId: number) => {
+        router.patch(`/admin/ads/${adId}/mark-expired`, {}, {
+            onError: (errors) => {
+                const errorMessages = Object.values(errors).flat();
+                const errorMessage = errorMessages.join(', ');
+                alert(`Error: ${errorMessage}`);
+            },
+            preserveScroll: true,
+        });
+    };
+
+
+    const handleDelete = (adId: number) => {
+        setDeletingAd(adId);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const confirmDelete = () => {
+        if (!deleteReason.trim()) {
+            alert('Please provide a reason for deletion.');
+            return;
+        }
+
+        if (deletingAd) {
+            router.post(`/admin/ads/${deletingAd}/delete`, {
+                delete_reason: deleteReason
+            }, {
+                onSuccess: () => {
+                    setIsDeleteDialogOpen(false);
+                    setDeletingAd(null);
+                    setDeleteReason('');
+                },
+                onError: (errors) => {
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    alert(`Error: ${errorMessage}`);
+                },
+                preserveScroll: true,
+            });
+        }
+    };
+
+    const handleCancelDelete = () => {
+        setIsDeleteDialogOpen(false);
+        setDeletingAd(null);
+        setDeleteReason('');
+    };
+
+    const confirmInactive = () => {
+        if (!inactiveReason.trim()) {
+            alert('Please provide a reason for marking as inactive.');
+            return;
+        }
+
+        if (inactivatingAd) {
+            router.post(`/admin/ads/${inactivatingAd}/mark-inactive`, {
+                inactive_reason: inactiveReason
+            }, {
+                onSuccess: () => {
+                    setIsInactiveDialogOpen(false);
+                    setInactivatingAd(null);
+                    setInactiveReason('');
+                },
+                onError: (errors) => {
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    alert(`Error: ${errorMessage}`);
+                },
+                preserveScroll: true,
+            });
+        }
+    };
+
+    const handleCancelInactive = () => {
+        setIsInactiveDialogOpen(false);
+        setInactivatingAd(null);
+        setInactiveReason('');
+    };
+
+    const handleCancelReject = () => {
+        setIsRejectDialogOpen(false);
+        setRejectingAd(null);
+        setRejectReason('');
+    };
+
+
+    // Helper functions to determine available actions
+    const canApprove = (ad: Ad) => {
+        return ad.is_approved === null || ad.is_approved === false;
+    };
+
+    const canReject = (ad: Ad) => {
+        return ad.is_approved === null;
+    };
+
+    const canActivate = (ad: Ad) => {
+        return ['inactive', 'expired', 'delete'].includes(ad.status);
+    };
+
+    const canDeactivate = (ad: Ad) => {
+        return ad.status === 'active';
+    };
+
+    const canToggleStatus = (ad: Ad) => {
+        return !['draft', 'sold'].includes(ad.status);
+    };
+
+    const canMarkAsSold = (ad: Ad) => {
+        return ad.status === 'active' && ad.is_approved === true;
+    };
+
+    const canMarkAsExpired = (ad: Ad) => {
+        return ad.status === 'active' && ad.is_approved === true;
+    };
+
+
+    const canDelete = (ad: Ad) => {
+        return ad.status !== 'sold';
+    };
+
+    const isInFinalState = (ad: Ad) => {
+        return ad.status === 'sold';
+    };
+
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Ads Management" />
             <>
                 <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
@@ -444,7 +610,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
 
                                 {/* Approved */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="approved">Approved</Label>
+                                    <Label htmlFor="approved">Approval Status</Label>
                                     <Select value={isApproved} onValueChange={setIsApproved}>
                                         <SelectTrigger>
                                             <SelectValue />
@@ -452,7 +618,8 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                         <SelectContent>
                                             <SelectItem value="all">All</SelectItem>
                                             <SelectItem value="true">Approved</SelectItem>
-                                            <SelectItem value="false">Not Approved</SelectItem>
+                                            <SelectItem value="false">Rejected</SelectItem>
+                                            <SelectItem value="pending">Pending</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -516,13 +683,13 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
                                             {getStatusBadge(ad.status)}
+                                            {getApprovalBadge(ad)}
+                                            {ad.is_featured && (
+                                                <Badge className="bg-yellow-100 text-yellow-800">
+                                                    Featured
+                                                </Badge>
+                                            )}
                                             <div className="flex items-center gap-1">
-                                                {ad.is_featured && (
-                                                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                                                )}
-                                                {ad.is_approved && (
-                                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                                )}
                                                 {ad.is_negotiable && (
                                                     <DollarSign className="h-4 w-4 text-blue-500" />
                                                 )}
@@ -584,74 +751,174 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                             >
                                                 <Eye className="h-4 w-4" />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => router.get(`/admin/ads/${ad.id}/edit`)}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleToggleStatus(ad.id)}
-                                                className={ad.status === 'active' ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'}
-                                            >
-                                                {ad.status === 'active' ? (
-                                                    <ToggleLeft className="h-4 w-4" />
-                                                ) : (
-                                                    <ToggleRight className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleToggleFeatured(ad.id)}
-                                                className={ad.is_featured ? 'text-yellow-600 hover:text-yellow-700' : 'text-gray-600 hover:text-gray-700'}
-                                            >
-                                                <Star className={`h-4 w-4 ${ad.is_featured ? 'fill-current' : ''}`} />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleToggleApproval(ad.id)}
-                                                className={ad.is_approved ? 'text-green-600 hover:text-green-700' : 'text-gray-600 hover:text-gray-700'}
-                                            >
-                                                {ad.is_approved ? (
-                                                    <CheckCircle className="h-4 w-4" />
-                                                ) : (
-                                                    <XCircle className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                            <Dialog open={isDeleteDialogOpen && deletingAd === ad.id} onOpenChange={setIsDeleteDialogOpen}>
-                                                <DialogTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleDelete(ad.id)}
-                                                        className="text-destructive hover:text-destructive"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Delete Ad</DialogTitle>
-                                                        <DialogDescription>
-                                                            Are you sure you want to delete "{ad.title_en}"? This action cannot be undone.
-                                                        </DialogDescription>
-                                                    </DialogHeader>
-                                                    <DialogFooter>
-                                                        <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
+                                            
+                                            {/* Draft Status - Only View and Delete */}
+                                            {ad.status === 'draft' && (
+                                                <Dialog open={isDeleteDialogOpen && deletingAd === ad.id} onOpenChange={setIsDeleteDialogOpen}>
+                                                    <DialogTrigger asChild>
                                                         <Button
-                                                            variant="destructive"
-                                                            onClick={confirmDelete}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleDelete(ad.id)}
+                                                            className="text-destructive hover:text-destructive"
+                                                            title="Delete"
                                                         >
-                                                            Delete Ad
+                                                            <Trash2 className="h-4 w-4" />
                                                         </Button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Delete Ad</DialogTitle>
+                                                            <DialogDescription>
+                                                                Are you sure you want to delete "{ad.title_en}"? This action cannot be undone.
+                                                            </DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="space-y-4">
+                                                            <div>
+                                                                <label className="text-sm font-medium">Reason for deletion</label>
+                                                                <Textarea
+                                                                    value={deleteReason}
+                                                                    onChange={(e) => setDeleteReason(e.target.value)}
+                                                                    placeholder="Please provide a reason for deleting this ad..."
+                                                                    className="mt-1"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
+                                                            <Button
+                                                                variant="destructive"
+                                                                onClick={confirmDelete}
+                                                                disabled={!deleteReason.trim()}
+                                                            >
+                                                                Delete Ad
+                                                            </Button>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            )}
+                                            
+                                            {/* For all other statuses except sold and draft */}
+                                            {canToggleStatus(ad) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleToggleStatus(ad.id)}
+                                                    className={ad.status === 'active' ?'text-green-600 hover:text-green-700' : 'text-red-600 hover:text-red-700' }
+                                                    title={ad.status === 'active' ? 'Deactivate' : 'Activate'}
+                                                >
+                                                    {ad.status === 'active' ? (
+                                                        <ToggleLeft className="h-4 w-4" />
+                                                    ) : (
+                                                        <ToggleRight className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                            )}
+                                            
+                                            {/* Approval Actions - For all ads */}
+                                            {canApprove(ad) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleApprove(ad.id)}
+                                                    className="text-green-600 hover:text-green-700"
+                                                    title="Approve"
+                                                >
+                                                    <Check className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                            
+                                            {canReject(ad) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleReject(ad.id)}
+                                                    className="text-red-600 hover:text-red-700"
+                                                    title="Reject"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                            
+                                            {/* Status Change Actions - Only for active and approved ads */}
+                                            {canMarkAsSold(ad) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleMarkAsSold(ad.id)}
+                                                    className="text-blue-600 hover:text-blue-700"
+                                                    title="Mark as Sold"
+                                                >
+                                                    <ShoppingCart className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                            
+                                            {canMarkAsExpired(ad) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleMarkAsExpired(ad.id)}
+                                                    className="text-yellow-600 hover:text-yellow-700"
+                                                    title="Mark as Expired"
+                                                >
+                                                    <Clock className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                            
+                                            
+                                            {/* Delete Action - For all except sold and draft, or for delete status */}
+                                            {(canDelete(ad) && ad.status !== 'draft' && ad.status !== 'delete') && (
+                                                <Dialog open={isDeleteDialogOpen && deletingAd === ad.id} onOpenChange={setIsDeleteDialogOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleDelete(ad.id)}
+                                                            className="text-destructive hover:text-destructive"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Delete Ad</DialogTitle>
+                                                            <DialogDescription>
+                                                                Are you sure you want to delete "{ad.title_en}"? This action cannot be undone.
+                                                            </DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="space-y-4">
+                                                            <div>
+                                                                <label className="text-sm font-medium">Reason for deletion</label>
+                                                                <Textarea
+                                                                    value={deleteReason}
+                                                                    onChange={(e) => setDeleteReason(e.target.value)}
+                                                                    placeholder="Please provide a reason for deleting this ad..."
+                                                                    className="mt-1"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
+                                                            <Button
+                                                                variant="destructive"
+                                                                onClick={confirmDelete}
+                                                                disabled={!deleteReason.trim()}
+                                                            >
+                                                                Delete Ad
+                                                            </Button>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            )}
+                                            
+                                            {/* Final State Indicator */}
+                                            {isInFinalState(ad) && (
+                                                <div className="flex items-center gap-1 text-blue-600">
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                    <span className="text-xs">Final State</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </CardContent>
@@ -699,7 +966,23 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                 variant={isActive ? "default" : "outline"}
                                                 size="sm"
                                                 className={`w-10 h-10 ${isActive ? 'bg-black text-white hover:bg-black' : ''}`}
-                                                onClick={() => router.get(`${ads.path}?page=${page}`, {}, { preserveScroll: true })}
+                                                onClick={() => {
+                                                    const params = new URLSearchParams();
+                                                    if (search && search.trim()) params.append('search', search);
+                                                    if (status && status !== 'all') params.append('status', status);
+                                                    if (isApproved && isApproved !== 'all') params.append('is_approved', isApproved);
+                                                    if (categoryId && categoryId !== 'all') params.append('category_id', categoryId);
+                                                    if (governorateId && governorateId !== 'all') params.append('governorate_id', governorateId);
+                                                    if (priceTypeId && priceTypeId !== 'all') params.append('price_type_id', priceTypeId);
+                                                    if (conditionId && conditionId !== 'all') params.append('condition_id', conditionId);
+                                                    if (isNegotiable && isNegotiable !== 'all') params.append('is_negotiable', isNegotiable);
+                                                    if (minPrice && minPrice.trim()) params.append('min_price', minPrice);
+                                                    if (maxPrice && maxPrice.trim()) params.append('max_price', maxPrice);
+                                                    if (perPage && perPage !== 'all') params.append('per_page', perPage);
+                                                    params.append('page', page.toString());
+                                                    
+                                                    router.get(`/admin/ads?${params.toString()}`, {}, { preserveScroll: true });
+                                                }}
                                             >
                                                 {page}
                                             </Button>
@@ -713,7 +996,23 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                 variant="outline"
                                                 size="sm"
                                                 className="w-10 h-10"
-                                                onClick={() => router.get(`${ads.path}?page=${ads.last_page}`, {}, { preserveScroll: true })}
+                                                onClick={() => {
+                                                    const params = new URLSearchParams();
+                                                    if (search && search.trim()) params.append('search', search);
+                                                    if (status && status !== 'all') params.append('status', status);
+                                                    if (isApproved && isApproved !== 'all') params.append('is_approved', isApproved);
+                                                    if (categoryId && categoryId !== 'all') params.append('category_id', categoryId);
+                                                    if (governorateId && governorateId !== 'all') params.append('governorate_id', governorateId);
+                                                    if (priceTypeId && priceTypeId !== 'all') params.append('price_type_id', priceTypeId);
+                                                    if (conditionId && conditionId !== 'all') params.append('condition_id', conditionId);
+                                                    if (isNegotiable && isNegotiable !== 'all') params.append('is_negotiable', isNegotiable);
+                                                    if (minPrice && minPrice.trim()) params.append('min_price', minPrice);
+                                                    if (maxPrice && maxPrice.trim()) params.append('max_price', maxPrice);
+                                                    if (perPage && perPage !== 'all') params.append('per_page', perPage);
+                                                    params.append('page', ads.last_page.toString());
+                                                    
+                                                    router.get(`/admin/ads?${params.toString()}`, {}, { preserveScroll: true });
+                                                }}
                                             >
                                                 {ads.last_page}
                                             </Button>
@@ -736,6 +1035,77 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                         </div>
                     )}
                 </div>
+
+                {/* Rejection Reason Dialog */}
+                <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Reject Ad</DialogTitle>
+                            <DialogDescription>
+                                Please provide a reason for rejecting this ad. This will help the user understand what needs to be changed.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div>
+                                <Label htmlFor="reject-reason">Rejection Reason</Label>
+                                <Textarea
+                                    id="reject-reason"
+                                    value={rejectReason}
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                    placeholder="Enter the reason for rejection..."
+                                    className="mt-1"
+                                    rows={4}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={handleCancelReject}>Cancel</Button>
+                            <Button
+                                variant="destructive"
+                                onClick={confirmReject}
+                                disabled={!rejectReason.trim()}
+                            >
+                                Reject Ad
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Inactive Reason Dialog */}
+                <Dialog open={isInactiveDialogOpen} onOpenChange={setIsInactiveDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Mark as Inactive</DialogTitle>
+                            <DialogDescription>
+                                Please provide a reason for marking this ad as inactive.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div>
+                                <Label htmlFor="inactive-reason">Inactive Reason</Label>
+                                <Textarea
+                                    id="inactive-reason"
+                                    value={inactiveReason}
+                                    onChange={(e) => setInactiveReason(e.target.value)}
+                                    placeholder="Enter the reason for marking as inactive..."
+                                    className="mt-1"
+                                    rows={4}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={handleCancelInactive}>Cancel</Button>
+                            <Button
+                                variant="destructive"
+                                onClick={confirmInactive}
+                                disabled={!inactiveReason.trim()}
+                            >
+                                Mark as Inactive
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
             </>
         </AppLayout>
     );

@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes/admin';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Crown, DollarSign, Folder, Grid3X3, LayoutGrid, Link as LinkIcon, MapPin, Settings, Tag, Users, Megaphone } from 'lucide-react';
+import { BookOpen, Crown, DollarSign, Folder, Grid3X3, LayoutGrid, Link as LinkIcon, MapPin, Settings, Tag, Users, Megaphone, Image, BarChart3 } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -42,6 +42,16 @@ const mainNavItems: NavItem[] = [
         title: 'Subscription Plans',
         href: '/admin/subscription-plans',
         icon: Crown,
+    },
+    {
+        title: 'Banners',
+        href: '/admin/banners',
+        icon: Image,
+    },
+    {
+        title: 'Finance',
+        href: '/admin/finance',
+        icon: BarChart3,
     },
 ];
 

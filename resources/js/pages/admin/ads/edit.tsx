@@ -24,7 +24,8 @@ interface Ad {
     status: 'draft' | 'active' | 'inactive' | 'expired' | 'sold' | 'delete';
     is_featured: boolean;
     is_negotiable: boolean;
-    is_approved: boolean;
+    is_approved: boolean | null;
+    reject_reason?: string | null;
     delete_reason?: string;
     user: {
         id: number;

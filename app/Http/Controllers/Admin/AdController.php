@@ -72,7 +72,11 @@ class AdController extends Controller
 
         // Filter by approval status
         if ($request->filled('is_approved')) {
-            $query->where('is_approved', $request->is_approved === 'true');
+            if ($request->is_approved === 'pending') {
+                $query->whereNull('is_approved');
+            } else {
+                $query->where('is_approved', $request->is_approved === 'true');
+            }
         }
 
         // Filter by negotiable status
@@ -213,35 +217,117 @@ class AdController extends Controller
 
     public function toggleStatus(Ad $ad)
     {
-        $newStatus = $ad->status === 'active' ? 'inactive' : 'active';
-        $ad->update(['status' => $newStatus]);
+        if (!$ad->canBeActivated() && !$ad->canBeDeactivated()) {
+            return back()->with('error', 'This ad cannot be activated/deactivated in its current state.');
+        }
 
-        $message = $newStatus === 'active'
-            ? 'Ad activated successfully.'
-            : 'Ad deactivated successfully.';
+        // Handle different status transitions
+        if ($ad->status === 'expired') {
+            $ad->update(['status' => 'active']);
+            $message = 'Ad activated successfully.';
+        } elseif ($ad->status === 'inactive') {
+            $ad->update(['status' => 'active']);
+            $message = 'Ad activated successfully.';
+        } elseif ($ad->status === 'delete') {
+            $ad->update(['status' => 'active']);
+            $message = 'Ad activated successfully.';
+        } elseif ($ad->status === 'active') {
+            $ad->update(['status' => 'inactive']);
+            $message = 'Ad deactivated successfully.';
+        } else {
+            return back()->with('error', 'Invalid status transition.');
+        }
 
         return back()->with('success', $message);
     }
 
-    public function toggleFeatured(Ad $ad)
+    public function approve(Ad $ad)
     {
-        $ad->update(['is_featured' => !$ad->is_featured]);
+        if (!$ad->canBeApproved()) {
+            return back()->with('error', 'This ad cannot be approved in its current state.');
+        }
 
-        $message = $ad->is_featured
-            ? 'Ad featured successfully.'
-            : 'Ad unfeatured successfully.';
+        $ad->update([
+            'is_approved' => true,
+            'reject_reason' => null // Clear any previous rejection reason
+        ]);
 
-        return back()->with('success', $message);
+        return back()->with('success', 'Ad approved successfully.');
     }
 
-    public function toggleApproval(Ad $ad)
+    public function reject(Request $request, Ad $ad)
     {
-        $ad->update(['is_approved' => !$ad->is_approved]);
+        if (!$ad->canBeRejected()) {
+            return back()->with('error', 'This ad cannot be rejected in its current state.');
+        }
 
-        $message = $ad->is_approved
-            ? 'Ad approved successfully.'
-            : 'Ad unapproved successfully.';
+        $request->validate([
+            'reject_reason' => 'required|string|max:1000'
+        ]);
 
-        return back()->with('success', $message);
+        $ad->update([
+            'is_approved' => false,
+            'reject_reason' => $request->reject_reason
+        ]);
+
+        return back()->with('success', 'Ad rejected successfully.');
+    }
+
+    public function markAsSold(Ad $ad)
+    {
+        if (!$ad->canBeMarkedAsSold()) {
+            return back()->with('error', 'This ad cannot be marked as sold in its current state.');
+        }
+
+        $ad->update(['status' => 'sold']);
+
+        return back()->with('success', 'Ad marked as sold successfully.');
+    }
+
+    public function markAsExpired(Ad $ad)
+    {
+        if (!$ad->canBeMarkedAsExpired()) {
+            return back()->with('error', 'This ad cannot be marked as expired in its current state.');
+        }
+
+        $ad->update(['status' => 'expired']);
+
+        return back()->with('success', 'Ad marked as expired successfully.');
+    }
+
+    public function markAsInactive(Request $request, Ad $ad)
+    {
+        if (!$ad->canBeMarkedAsInactive()) {
+            return back()->with('error', 'This ad cannot be marked as inactive in its current state.');
+        }
+
+        $request->validate([
+            'inactive_reason' => 'required|string|max:1000'
+        ]);
+
+        $ad->update([
+            'status' => 'inactive',
+            'delete_reason' => $request->inactive_reason
+        ]);
+
+        return back()->with('success', 'Ad marked as inactive successfully.');
+    }
+
+    public function delete(Request $request, Ad $ad)
+    {
+        if (!$ad->canBeDeleted()) {
+            return back()->with('error', 'This ad cannot be deleted in its current state.');
+        }
+
+        $request->validate([
+            'delete_reason' => 'required|string|max:1000'
+        ]);
+
+        $ad->update([
+            'status' => 'delete',
+            'delete_reason' => $request->delete_reason
+        ]);
+
+        return back()->with('success', 'Ad deleted successfully.');
     }
 }

@@ -50,8 +50,20 @@ Route::prefix('admin')->group(function () {
         // Ads Management
         Route::resource('ads', App\Http\Controllers\Admin\AdController::class);
         Route::patch('ads/{ad}/toggle-status', [App\Http\Controllers\Admin\AdController::class, 'toggleStatus'])->name('ads.toggle-status');
-        Route::patch('ads/{ad}/toggle-featured', [App\Http\Controllers\Admin\AdController::class, 'toggleFeatured'])->name('ads.toggle-featured');
-        Route::patch('ads/{ad}/toggle-approval', [App\Http\Controllers\Admin\AdController::class, 'toggleApproval'])->name('ads.toggle-approval');
+        Route::patch('ads/{ad}/approve', [App\Http\Controllers\Admin\AdController::class, 'approve'])->name('ads.approve');
+        Route::post('ads/{ad}/reject', [App\Http\Controllers\Admin\AdController::class, 'reject'])->name('ads.reject');
+        Route::patch('ads/{ad}/mark-sold', [App\Http\Controllers\Admin\AdController::class, 'markAsSold'])->name('ads.mark-sold');
+        Route::patch('ads/{ad}/mark-expired', [App\Http\Controllers\Admin\AdController::class, 'markAsExpired'])->name('ads.mark-expired');
+        Route::post('ads/{ad}/mark-inactive', [App\Http\Controllers\Admin\AdController::class, 'markAsInactive'])->name('ads.mark-inactive');
+        Route::post('ads/{ad}/delete', [App\Http\Controllers\Admin\AdController::class, 'delete'])->name('ads.delete');
+
+        // Banners Management
+        Route::resource('banners', App\Http\Controllers\Admin\BannerController::class);
+        Route::patch('banners/{banner}/toggle', [App\Http\Controllers\Admin\BannerController::class, 'toggleStatus'])->name('banners.toggle');
+
+        // Finance Management
+        Route::get('finance', [App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('finance.index');
+        Route::get('finance/export', [App\Http\Controllers\Admin\FinanceController::class, 'exportCsv'])->name('finance.export');
     });
     require __DIR__ . '/auth.php';
     require __DIR__ . '/settings.php';
