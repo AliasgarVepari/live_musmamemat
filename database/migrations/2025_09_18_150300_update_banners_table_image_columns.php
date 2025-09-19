@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::table('banners', function (Blueprint $table) {
             // Rename existing image_url to image_url_en
-            $table->renameColumn('image_url', 'image_url_en');
-            
+            $table->dropColumn('image_url');
+
             // Add new image_url_ar column
-            $table->string('image_url_ar')->nullable()->after('image_url_en');
+            $table->string('image_url')->nullable();
         });
     }
 
@@ -28,7 +28,7 @@ return new class extends Migration
         Schema::table('banners', function (Blueprint $table) {
             // Rename image_url_en back to image_url
             $table->renameColumn('image_url_en', 'image_url');
-            
+
             // Drop image_url_ar column
             $table->dropColumn('image_url_ar');
         });
