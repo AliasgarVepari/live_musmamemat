@@ -11,7 +11,7 @@ import {
 import { type CollapsibleNavItem, type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export function NavMainCollapsible({ items = [] }: { items: CollapsibleNavItem[] }) {
     const page = usePage();
@@ -30,6 +30,16 @@ export function NavMainCollapsible({ items = [] }: { items: CollapsibleNavItem[]
         if (!item.items) return false;
         return item.items.some((subItem) => isItemActive(subItem));
     };
+
+    // Automatically open parent items when their sub-items are active
+    useEffect(() => {
+        const activeParentItems = items.filter((item) => isParentActive(item)).map((item) => item.title);
+
+        setOpenItems((prev) => {
+            const newOpenItems = [...new Set([...prev, ...activeParentItems])];
+            return newOpenItems;
+        });
+    }, [page.url, items]);
 
     return (
         <SidebarGroup className="px-2 py-0">

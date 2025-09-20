@@ -1,11 +1,9 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\UserSubscription;
 use App\Models\Ad;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -22,9 +20,9 @@ class UsersController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('name_en', 'like', "%{$search}%")
-                  ->orWhere('name_ar', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('name_en', 'like', "%{$search}%")
+                    ->orWhere('name_ar', 'like', "%{$search}%");
             });
         }
 
@@ -33,18 +31,18 @@ class UsersController extends Controller
             if ($request->subscription_status === 'subscribed') {
                 $query->whereHas('subscription', function ($q) {
                     $q->where('is_active', true)
-                      ->where('expires_at', '>', now());
+                        ->where('expires_at', '>', now());
                 });
             } elseif ($request->subscription_status === 'expired') {
                 $query->whereHas('subscription', function ($q) {
                     $q->where('is_active', true)
-                      ->where('expires_at', '<=', now());
+                        ->where('expires_at', '<=', now());
                 });
             } elseif ($request->subscription_status === 'unsubscribed') {
                 $query->whereDoesntHave('subscription')
-                      ->orWhereHas('subscription', function ($q) {
-                          $q->where('is_active', false);
-                      });
+                    ->orWhereHas('subscription', function ($q) {
+                        $q->where('is_active', false);
+                    });
             }
         }
 
@@ -60,7 +58,7 @@ class UsersController extends Controller
 
         // Get per_page parameter with validation
         $perPage = $request->get('per_page', 20);
-        $perPage = in_array($perPage, [5, 10, 20, 50, 100]) ? (int)$perPage : 20;
+        $perPage = in_array($perPage, [5, 10, 20, 50, 100]) ? (int) $perPage : 20;
 
         $users = $query->orderBy('created_at', 'desc')
             ->paginate($perPage)
@@ -70,9 +68,9 @@ class UsersController extends Controller
         $governorates = \App\Models\Governorate::orderBy('name_en')->get();
 
         return Inertia::render('admin/users/index', [
-            'users' => $users,
+            'users'        => $users,
             'governorates' => $governorates,
-            'filters' => $request->only(['search', 'subscription_status', 'status', 'governorate_id', 'per_page']),
+            'filters'      => $request->only(['search', 'subscription_status', 'status', 'governorate_id', 'per_page']),
         ]);
     }
 
@@ -81,47 +79,46 @@ class UsersController extends Controller
         $user->load([
             'governorate',
             'subscription.plan',
-            'ads' => function ($query) {
-                $query->with(['category', 'condition', 'priceType'])
-                      ->orderBy('created_at', 'desc')
-                      ->limit(10);
+            'ads'     => function ($query) {
+                $query->with([
+                    'category:id,name_en,name_ar',
+                    'condition:id,name_en,name_ar',
+                    'priceType:id,name_en,name_ar',
+                    'governorate:id,name_en,name_ar',
+                    'primaryImage:id,ad_id,url,is_primary',
+                ])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10);
             },
             'adViews' => function ($query) {
                 $query->with('ad')
-                      ->orderBy('created_at', 'desc')
-                      ->limit(10);
-            }
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10);
+            },
         ]);
 
-        // Get subscription history
-        $subscriptionHistory = UserSubscription::where('user_id', $user->id)
-            ->with('plan')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
         // Get total stats
-        $totalAds = $user->ads()->count();
+        $totalAds   = $user->ads()->count();
         $totalViews = $user->adViews()->count();
-        $activeAds = $user->ads()->where('status', 'active')->count();
+        $activeAds  = $user->ads()->where('status', 'active')->count();
 
         return Inertia::render('admin/users/show', [
-            'user' => $user,
-            'subscriptionHistory' => $subscriptionHistory,
-            'totalAds' => $totalAds,
+            'user'       => $user,
+            'totalAds'   => $totalAds,
             'totalViews' => $totalViews,
-            'activeAds' => $activeAds,
+            'activeAds'  => $activeAds,
         ]);
     }
 
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'name_en' => 'required|string|max:255',
-            'name_ar' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'phone' => 'required|string|max:20',
-            'governorate_id' => 'required|exists:governorates,id',
-            'status' => 'required|in:active,suspended,deleted',
+            'name_en'           => 'required|string|max:255',
+            'name_ar'           => 'required|string|max:255',
+            'email'             => 'required|email|unique:users,email,' . $user->id,
+            'phone'             => 'required|string|max:20',
+            'governorate_id'    => 'required|exists:governorates,id',
+            'status'            => 'required|in:active,suspended,deleted',
             'suspension_reason' => 'nullable|string|max:1000',
         ]);
 
@@ -131,12 +128,12 @@ class UsersController extends Controller
         }
 
         $user->update([
-            'name_en' => $request->name_en,
-            'name_ar' => $request->name_ar,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'governorate_id' => $request->governorate_id,
-            'status' => $request->status,
+            'name_en'           => $request->name_en,
+            'name_ar'           => $request->name_ar,
+            'email'             => $request->email,
+            'phone'             => $request->phone,
+            'governorate_id'    => $request->governorate_id,
+            'status'            => $request->status,
             'suspension_reason' => $request->suspension_reason,
         ]);
 
@@ -152,9 +149,9 @@ class UsersController extends Controller
 
         // Soft delete the user
         $user->update([
-            'status' => 'deleted',
+            'status'          => 'deleted',
             'deletion_reason' => $request->deletion_reason,
-            'deleted_at' => now(),
+            'deleted_at'      => now(),
         ]);
 
         return redirect()->route('users.index')
@@ -164,9 +161,9 @@ class UsersController extends Controller
     public function toggle(User $user)
     {
         $newStatus = $user->status === 'active' ? 'suspended' : 'active';
-        
+
         $user->update([
-            'status' => $newStatus,
+            'status'            => $newStatus,
             'suspension_reason' => $newStatus === 'suspended' ? 'Account suspended by admin' : null,
         ]);
 
@@ -182,8 +179,8 @@ class UsersController extends Controller
         // Revoke current subscription
         if ($user->subscription) {
             $user->subscription->update([
-                'is_active' => false,
-                'revoked_at' => now(),
+                'is_active'         => false,
+                'revoked_at'        => now(),
                 'revocation_reason' => $request->revocation_reason,
             ]);
         }
@@ -198,7 +195,7 @@ class UsersController extends Controller
         }
 
         $user->update([
-            'status' => 'active',
+            'status'          => 'active',
             'deletion_reason' => null,
         ]);
 
@@ -208,15 +205,15 @@ class UsersController extends Controller
     public function getStats()
     {
         $stats = [
-            'total_users' => User::count(),
-            'active_users' => User::where('status', 'active')->count(),
-            'suspended_users' => User::where('status', 'suspended')->count(),
+            'total_users'      => User::count(),
+            'active_users'     => User::where('status', 'active')->count(),
+            'suspended_users'  => User::where('status', 'suspended')->count(),
             'subscribed_users' => User::whereHas('subscription', function ($q) {
                 $q->where('is_active', true)
-                  ->where('expires_at', '>', now());
+                    ->where('expires_at', '>', now());
             })->count(),
-            'total_ads' => Ad::count(),
-            'total_views' => DB::table('ad_views')->count(),
+            'total_ads'        => Ad::count(),
+            'total_views'      => DB::table('ad_views')->count(),
         ];
 
         return response()->json($stats);

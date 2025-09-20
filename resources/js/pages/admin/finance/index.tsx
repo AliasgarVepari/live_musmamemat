@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
-import AppLayout from '@/layouts/admin/app-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
 import { Input } from '@/components/admin/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
-import { Badge } from '@/components/admin/ui/badge';
-import { 
-    DollarSign, 
-    Search, 
-    Filter, 
-    Download, 
-    TrendingUp,
-    Users,
-    CreditCard,
-    Calendar
-} from 'lucide-react';
+import { useCachedPagination } from '@/hooks/admin/use-cached-pagination';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
+import AppLayout from '@/layouts/admin/app-layout';
+import { type BreadcrumbItem } from '@/types';
+import { Head } from '@inertiajs/react';
+import { CreditCard, DollarSign, Download, Filter, Search, TrendingUp, Users } from 'lucide-react';
+import { useEffect } from 'react';
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Finance',
+        href: '/admin/finance',
+    },
+];
 
 interface Transaction {
     id: number;
@@ -24,9 +24,9 @@ interface Transaction {
         name_en: string;
         email: string;
     };
-    subscriptionPlan: {
+    subscriptionPlan?: {
         name_en: string;
-    };
+    } | null;
     status: 'active' | 'cancelled' | 'expired' | 'revoked';
     payment_method: string | null;
     amount_paid: number | string;
@@ -54,6 +54,7 @@ interface Filters {
     date_to?: string;
     amount_min?: string;
     amount_max?: string;
+    per_page?: string;
 }
 
 interface Stats {
@@ -70,37 +71,58 @@ interface Props {
 }
 
 export default function Index({ transactions, filters, stats }: Props) {
-    const [search, setSearch] = useState(filters.search || '');
-    const [status, setStatus] = useState(filters.status || 'all');
-    const [paymentMethod, setPaymentMethod] = useState(filters.payment_method || 'all');
-    const [dateFrom, setDateFrom] = useState(filters.date_from || '');
-    const [dateTo, setDateTo] = useState(filters.date_to || '');
-    const [amountMin, setAmountMin] = useState(filters.amount_min || '');
-    const [amountMax, setAmountMax] = useState(filters.amount_max || '');
-
     useErrorHandler();
+
+    // Use cached pagination hook
+    const {
+        data: cachedTransactions,
+        isLoading,
+        paginationState,
+        goToPage,
+        setPerPage,
+        setSearch,
+        updateFilter,
+    } = useCachedPagination<typeof transactions>({
+        endpoint: '/admin/finance',
+        initialPage: transactions.current_page,
+        initialPerPage: filters.per_page || '10',
+        initialSearch: filters.search || '',
+        initialFilters: {
+            status: filters.status || 'all',
+            payment_method: filters.payment_method || 'all',
+            date_from: filters.date_from || '',
+            date_to: filters.date_to || '',
+            amount_min: filters.amount_min || '',
+            amount_max: filters.amount_max || '',
+        },
+    });
+
+    // Use cached data if available, otherwise fall back to props
+    const transactionsData = cachedTransactions || transactions;
+
+    // Show loading state if data is not available
+    if (isLoading && !transactionsData) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Finance Management" />
+                <div className="flex h-full flex-1 flex-col items-center justify-center gap-6 overflow-x-auto rounded-xl p-6">
+                    <div className="text-center">
+                        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-gray-900"></div>
+                        <p className="text-muted-foreground">Loading transactions...</p>
+                    </div>
+                </div>
+            </AppLayout>
+        );
+    }
 
     // Debounced search effect
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            const params = new URLSearchParams();
-            if (search && search.trim()) params.append('search', search);
-            if (status && status !== 'all') params.append('status', status);
-            if (paymentMethod && paymentMethod !== 'all') params.append('payment_method', paymentMethod);
-            if (dateFrom && dateFrom.trim()) params.append('date_from', dateFrom);
-            if (dateTo && dateTo.trim()) params.append('date_to', dateTo);
-            if (amountMin && amountMin.trim()) params.append('amount_min', amountMin);
-            if (amountMax && amountMax.trim()) params.append('amount_max', amountMax);
-
-            router.get(`/admin/finance?${params.toString()}`, {}, {
-                preserveState: true,
-                replace: true,
-                preserveScroll: true,
-            });
+            setSearch(paginationState.search);
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [search, status, paymentMethod, dateFrom, dateTo, amountMin, amountMax]);
+    }, [paginationState.search, setSearch]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -129,22 +151,27 @@ export default function Index({ transactions, filters, stats }: Props) {
 
     const handleExportCsv = () => {
         const params = new URLSearchParams();
-        if (search && search.trim()) params.append('search', search);
-        if (status && status !== 'all') params.append('status', status);
-        if (paymentMethod && paymentMethod !== 'all') params.append('payment_method', paymentMethod);
-        if (dateFrom && dateFrom.trim()) params.append('date_from', dateFrom);
-        if (dateTo && dateTo.trim()) params.append('date_to', dateTo);
-        if (amountMin && amountMin.trim()) params.append('amount_min', amountMin);
-        if (amountMax && amountMax.trim()) params.append('amount_max', amountMax);
+        if (paginationState.search && paginationState.search.trim()) params.append('search', paginationState.search);
+        if (paginationState.filters.status && paginationState.filters.status !== 'all') params.append('status', paginationState.filters.status);
+        if (paginationState.filters.payment_method && paginationState.filters.payment_method !== 'all')
+            params.append('payment_method', paginationState.filters.payment_method);
+        if (paginationState.filters.date_from && paginationState.filters.date_from.trim())
+            params.append('date_from', paginationState.filters.date_from);
+        if (paginationState.filters.date_to && paginationState.filters.date_to.trim()) params.append('date_to', paginationState.filters.date_to);
+        if (paginationState.filters.amount_min && paginationState.filters.amount_min.trim())
+            params.append('amount_min', paginationState.filters.amount_min);
+        if (paginationState.filters.amount_max && paginationState.filters.amount_max.trim())
+            params.append('amount_max', paginationState.filters.amount_max);
+        if (paginationState.perPage) params.append('per_page', paginationState.perPage);
 
         window.open(`/admin/finance/export?${params.toString()}`, '_blank');
     };
 
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Finance" />
-            
-            <div className="space-y-6">
+
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -158,11 +185,11 @@ export default function Index({ transactions, filters, stats }: Props) {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     <Card>
                         <CardContent className="p-6">
                             <div className="flex items-center">
-                                <div className="p-2 bg-green-100 rounded-lg">
+                                <div className="rounded-lg bg-green-100 p-2">
                                     <DollarSign className="h-6 w-6 text-green-600" />
                                 </div>
                                 <div className="ml-4">
@@ -176,7 +203,7 @@ export default function Index({ transactions, filters, stats }: Props) {
                     <Card>
                         <CardContent className="p-6">
                             <div className="flex items-center">
-                                <div className="p-2 bg-blue-100 rounded-lg">
+                                <div className="rounded-lg bg-blue-100 p-2">
                                     <CreditCard className="h-6 w-6 text-blue-600" />
                                 </div>
                                 <div className="ml-4">
@@ -190,7 +217,7 @@ export default function Index({ transactions, filters, stats }: Props) {
                     <Card>
                         <CardContent className="p-6">
                             <div className="flex items-center">
-                                <div className="p-2 bg-purple-100 rounded-lg">
+                                <div className="rounded-lg bg-purple-100 p-2">
                                     <Users className="h-6 w-6 text-purple-600" />
                                 </div>
                                 <div className="ml-4">
@@ -204,7 +231,7 @@ export default function Index({ transactions, filters, stats }: Props) {
                     <Card>
                         <CardContent className="p-6">
                             <div className="flex items-center">
-                                <div className="p-2 bg-orange-100 rounded-lg">
+                                <div className="rounded-lg bg-orange-100 p-2">
                                     <TrendingUp className="h-6 w-6 text-orange-600" />
                                 </div>
                                 <div className="ml-4">
@@ -225,23 +252,23 @@ export default function Index({ transactions, filters, stats }: Props) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                             <div>
                                 <label className="text-sm font-medium">Search</label>
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
                                     <Input
                                         placeholder="Search users..."
-                                        value={search}
+                                        value={paginationState.search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         className="pl-10"
                                     />
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <label className="text-sm font-medium">Status</label>
-                                <Select value={status} onValueChange={setStatus}>
+                                <Select value={paginationState.filters.status} onValueChange={(value) => updateFilter('status', value)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="All Statuses" />
                                     </SelectTrigger>
@@ -257,7 +284,10 @@ export default function Index({ transactions, filters, stats }: Props) {
 
                             <div>
                                 <label className="text-sm font-medium">Payment Method</label>
-                                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                <Select
+                                    value={paginationState.filters.payment_method}
+                                    onValueChange={(value) => updateFilter('payment_method', value)}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder="All Methods" />
                                     </SelectTrigger>
@@ -276,37 +306,53 @@ export default function Index({ transactions, filters, stats }: Props) {
                                 <div className="flex gap-2">
                                     <Input
                                         type="date"
-                                        value={dateFrom}
-                                        onChange={(e) => setDateFrom(e.target.value)}
+                                        value={paginationState.filters.date_from}
+                                        onChange={(e) => updateFilter('date_from', e.target.value)}
                                         placeholder="From"
                                     />
                                     <Input
                                         type="date"
-                                        value={dateTo}
-                                        onChange={(e) => setDateTo(e.target.value)}
+                                        value={paginationState.filters.date_to}
+                                        onChange={(e) => updateFilter('date_to', e.target.value)}
                                         placeholder="To"
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div>
                                 <label className="text-sm font-medium">Amount Range</label>
                                 <div className="flex gap-2">
                                     <Input
                                         type="number"
                                         placeholder="Min Amount"
-                                        value={amountMin}
-                                        onChange={(e) => setAmountMin(e.target.value)}
+                                        value={paginationState.filters.amount_min}
+                                        onChange={(e) => updateFilter('amount_min', e.target.value)}
                                     />
                                     <Input
                                         type="number"
                                         placeholder="Max Amount"
-                                        value={amountMax}
-                                        onChange={(e) => setAmountMax(e.target.value)}
+                                        value={paginationState.filters.amount_max}
+                                        onChange={(e) => updateFilter('amount_max', e.target.value)}
                                     />
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium">Records per page</label>
+                                <Select value={paginationState.perPage} onValueChange={setPerPage}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Records per page" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="5">5</SelectItem>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="20">20</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="100">100</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </CardContent>
@@ -322,32 +368,30 @@ export default function Index({ transactions, filters, stats }: Props) {
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b">
-                                        <th className="text-left py-3 px-4">Transaction ID</th>
-                                        <th className="text-left py-3 px-4">User</th>
-                                        <th className="text-left py-3 px-4">Plan</th>
-                                        <th className="text-left py-3 px-4">Status</th>
-                                        <th className="text-left py-3 px-4">Payment Method</th>
-                                        <th className="text-left py-3 px-4">Amount</th>
-                                        <th className="text-left py-3 px-4">Date</th>
+                                        <th className="px-4 py-3 text-left">Transaction ID</th>
+                                        <th className="px-4 py-3 text-left">User</th>
+                                        <th className="px-4 py-3 text-left">Plan</th>
+                                        <th className="px-4 py-3 text-left">Status</th>
+                                        <th className="px-4 py-3 text-left">Payment Method</th>
+                                        <th className="px-4 py-3 text-left">Amount</th>
+                                        <th className="px-4 py-3 text-left">Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {transactions.data.map((transaction) => (
+                                    {transactionsData?.data?.map((transaction: Transaction) => (
                                         <tr key={transaction.id} className="border-b hover:bg-gray-50">
-                                            <td className="py-3 px-4 font-mono text-sm">#{transaction.id}</td>
-                                            <td className="py-3 px-4">
+                                            <td className="px-4 py-3 font-mono text-sm">#{transaction.id}</td>
+                                            <td className="px-4 py-3">
                                                 <div>
                                                     <div className="font-medium">{transaction.user.name_en}</div>
                                                     <div className="text-sm text-gray-500">{transaction.user.email}</div>
                                                 </div>
                                             </td>
-                                            <td className="py-3 px-4">{transaction.subscriptionPlan.name_en}</td>
-                                            <td className="py-3 px-4">{getStatusBadge(transaction.status)}</td>
-                                            <td className="py-3 px-4">{transaction.payment_method || 'N/A'}</td>
-                                            <td className="py-3 px-4 font-medium">{formatCurrency(transaction.amount_paid)}</td>
-                                            <td className="py-3 px-4 text-sm text-gray-500">
-                                                {formatDate(transaction.created_at)}
-                                            </td>
+                                            <td className="px-4 py-3">{transaction.subscriptionPlan?.name_en || 'N/A'}</td>
+                                            <td className="px-4 py-3">{getStatusBadge(transaction.status)}</td>
+                                            <td className="px-4 py-3">{transaction.payment_method || 'N/A'}</td>
+                                            <td className="px-4 py-3 font-medium">{formatCurrency(transaction.amount_paid)}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500">{formatDate(transaction.created_at)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -355,12 +399,18 @@ export default function Index({ transactions, filters, stats }: Props) {
                         </div>
 
                         {/* Empty State */}
-                        {transactions.data.length === 0 && (
-                            <div className="text-center py-12">
-                                <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
+                        {transactionsData?.data?.length === 0 && (
+                            <div className="py-12 text-center">
+                                <CreditCard className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                                <h3 className="mb-2 text-lg font-medium text-gray-900">No transactions found</h3>
                                 <p className="text-gray-500">
-                                    {search || status !== 'all' || paymentMethod !== 'all' || dateFrom || dateTo || amountMin || amountMax
+                                    {paginationState.search ||
+                                    paginationState.filters.status !== 'all' ||
+                                    paginationState.filters.payment_method !== 'all' ||
+                                    paginationState.filters.date_from ||
+                                    paginationState.filters.date_to ||
+                                    paginationState.filters.amount_min ||
+                                    paginationState.filters.amount_max
                                         ? 'No transactions match your current filters.'
                                         : 'No transactions have been recorded yet.'}
                                 </p>
@@ -370,80 +420,105 @@ export default function Index({ transactions, filters, stats }: Props) {
                 </Card>
 
                 {/* Pagination */}
-                {transactions.last_page > 1 && (
-                    <div className="flex items-center justify-between">
+                {transactionsData?.last_page && transactionsData.last_page >= 1 ? (
+                    <div className="flex items-center justify-between px-4">
                         <div className="text-sm text-gray-700">
-                            Showing {transactions.from} to {transactions.to} of {transactions.total} results
+                            Showing {transactionsData.from} - {transactionsData.to} of {transactionsData.total} transactions
                         </div>
-                        <div className="flex items-center gap-2">
-                            {transactions.current_page > 1 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const params = new URLSearchParams();
-                                        if (search && search.trim()) params.append('search', search);
-                                        if (status && status !== 'all') params.append('status', status);
-                                        if (paymentMethod && paymentMethod !== 'all') params.append('payment_method', paymentMethod);
-                                        if (dateFrom && dateFrom.trim()) params.append('date_from', dateFrom);
-                                        if (dateTo && dateTo.trim()) params.append('date_to', dateTo);
-                                        if (amountMin && amountMin.trim()) params.append('amount_min', amountMin);
-                                        if (amountMax && amountMax.trim()) params.append('amount_max', amountMax);
-                                        params.append('page', (transactions.current_page - 1).toString());
-
-                                        router.get(`/admin/finance?${params.toString()}`, {}, { preserveScroll: true });
-                                    }}
-                                >
-                                    Previous
-                                </Button>
-                            )}
-                            
-                            <div className="flex items-center gap-1">
-                                {Array.from({ length: transactions.last_page }, (_, i) => i + 1).map((page) => (
+                        <div className="flex items-center space-x-2">
+                            {transactionsData.last_page > 1 && (
+                                <>
+                                    {/* Previous Button */}
                                     <Button
-                                        key={page}
-                                        variant={page === transactions.current_page ? "default" : "outline"}
+                                        variant="outline"
                                         size="sm"
-                                        onClick={() => {
-                                            const params = new URLSearchParams();
-                                            if (search && search.trim()) params.append('search', search);
-                                            if (status && status !== 'all') params.append('status', status);
-                                            if (paymentMethod && paymentMethod !== 'all') params.append('payment_method', paymentMethod);
-                                            if (dateFrom && dateFrom.trim()) params.append('date_from', dateFrom);
-                                            if (dateTo && dateTo.trim()) params.append('date_to', dateTo);
-                                            if (amountMin && amountMin.trim()) params.append('amount_min', amountMin);
-                                            if (amountMax && amountMax.trim()) params.append('amount_max', amountMax);
-                                            params.append('page', page.toString());
-
-                                            router.get(`/admin/finance?${params.toString()}`, {}, { preserveScroll: true });
-                                        }}
+                                        onClick={() => goToPage(transactionsData.current_page - 1)}
+                                        disabled={transactionsData.current_page <= 1}
                                     >
-                                        {page}
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                        </svg>
                                     </Button>
-                                ))}
-                            </div>
 
-                            {transactions.current_page < transactions.last_page && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const params = new URLSearchParams();
-                                        if (search && search.trim()) params.append('search', search);
-                                        if (status && status !== 'all') params.append('status', status);
-                                        if (paymentMethod && paymentMethod !== 'all') params.append('payment_method', paymentMethod);
-                                        if (dateFrom && dateFrom.trim()) params.append('date_from', dateFrom);
-                                        if (dateTo && dateTo.trim()) params.append('date_to', dateTo);
-                                        if (amountMin && amountMin.trim()) params.append('amount_min', amountMin);
-                                        if (amountMax && amountMax.trim()) params.append('amount_max', amountMax);
-                                        params.append('page', (transactions.current_page + 1).toString());
+                                    {/* Page Numbers */}
+                                    <div className="flex items-center space-x-1">
+                                        {(() => {
+                                            const current = transactionsData.current_page;
+                                            const last = transactionsData.last_page;
+                                            const delta = 2; // Number of pages to show on each side of current page
+                                            const range = [];
+                                            const rangeWithDots = [];
 
-                                        router.get(`/admin/finance?${params.toString()}`, {}, { preserveScroll: true });
-                                    }}
-                                >
-                                    Next
-                                </Button>
+                                            // Calculate the range of pages to show
+                                            for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
+                                                range.push(i);
+                                            }
+
+                                            // Always show first page
+                                            if (current - delta > 2) {
+                                                rangeWithDots.push(1, '...');
+                                            } else {
+                                                rangeWithDots.push(1);
+                                            }
+
+                                            // Add the calculated range (excluding first and last)
+                                            rangeWithDots.push(...range);
+
+                                            // Always show last page (if it's not already included)
+                                            if (last > 1) {
+                                                if (current + delta < last - 1) {
+                                                    rangeWithDots.push('...', last);
+                                                } else if (!range.includes(last)) {
+                                                    rangeWithDots.push(last);
+                                                }
+                                            }
+
+                                            return rangeWithDots.map((page, index) => {
+                                                if (page === '...') {
+                                                    return (
+                                                        <span key={`dots-${index}`} className="text-muted-foreground px-2">
+                                                            ...
+                                                        </span>
+                                                    );
+                                                }
+
+                                                const pageNum = page as number;
+                                                const isActive = pageNum === current;
+
+                                                return (
+                                                    <Button
+                                                        key={pageNum}
+                                                        variant={isActive ? 'default' : 'outline'}
+                                                        size="sm"
+                                                        className={`h-10 w-10 ${isActive ? 'bg-black text-white hover:bg-black' : ''}`}
+                                                        onClick={() => goToPage(pageNum)}
+                                                    >
+                                                        {pageNum}
+                                                    </Button>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+
+                                    {/* Next Button */}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => goToPage(transactionsData.current_page + 1)}
+                                        disabled={transactionsData.current_page >= transactionsData.last_page}
+                                    >
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </Button>
+                                </>
                             )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-between px-4">
+                        <div className="text-sm text-gray-700">
+                            Showing {transactions.from} - {transactions.to} of {transactions.total} transactions
                         </div>
                     </div>
                 )}

@@ -1,8 +1,6 @@
 <?php
-
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class ConditionSeeder extends Seeder
@@ -14,39 +12,34 @@ class ConditionSeeder extends Seeder
     {
         $conditions = [
             [
-                'name_en' => 'New',
-                'name_ar' => 'جديد',
-                'slug' => 'new',
+                'name_en'   => 'New',
+                'name_ar'   => 'جديد',
+                'slug'      => 'new',
                 'is_active' => true,
-                'sort_order' => 1,
             ],
             [
-                'name_en' => 'Like New',
-                'name_ar' => 'كالجديد',
-                'slug' => 'like-new',
+                'name_en'   => 'Like New',
+                'name_ar'   => 'كالجديد',
+                'slug'      => 'like-new',
                 'is_active' => true,
-                'sort_order' => 2,
             ],
             [
-                'name_en' => 'Good',
-                'name_ar' => 'جيد',
-                'slug' => 'good',
+                'name_en'   => 'Good',
+                'name_ar'   => 'جيد',
+                'slug'      => 'good',
                 'is_active' => true,
-                'sort_order' => 3,
             ],
             [
-                'name_en' => 'Fair',
-                'name_ar' => 'مقبول',
-                'slug' => 'fair',
+                'name_en'   => 'Fair',
+                'name_ar'   => 'مقبول',
+                'slug'      => 'fair',
                 'is_active' => true,
-                'sort_order' => 4,
             ],
             [
-                'name_en' => 'Poor',
-                'name_ar' => 'ضعيف',
-                'slug' => 'poor',
+                'name_en'   => 'Poor',
+                'name_ar'   => 'ضعيف',
+                'slug'      => 'poor',
                 'is_active' => true,
-                'sort_order' => 5,
             ],
         ];
 

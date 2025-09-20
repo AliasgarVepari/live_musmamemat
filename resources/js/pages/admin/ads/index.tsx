@@ -1,38 +1,35 @@
-import { useState, useEffect } from 'react';
-import { Head, router } from '@inertiajs/react';
-import AppLayout from '@/layouts/admin/app-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
-import { Button } from '@/components/admin/ui/button';
 import { Badge } from '@/components/admin/ui/badge';
+import { Button } from '@/components/admin/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/admin/ui/dialog';
 import { Input } from '@/components/admin/ui/input';
 import { Label } from '@/components/admin/ui/label';
-import { Textarea } from '@/components/admin/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/admin/ui/dialog';
-import { Switch } from '@/components/admin/ui/switch';
-import { 
-    Search, 
-    Filter, 
-    Eye, 
-    Trash2, 
-    ToggleRight, 
-    ToggleLeft, 
-    CheckCircle, 
-    XCircle,
-    DollarSign,
-    MapPin,
-    Calendar,
-    User,
-    Image as ImageIcon,
-    Check,
-    X,
-    ShoppingCart,
-    Clock,
-    Pause,
-    AlertTriangle
-} from 'lucide-react';
+import { Textarea } from '@/components/admin/ui/textarea';
+import { useCachedPagination } from '@/hooks/admin/use-cached-pagination';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
+import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { Head, router } from '@inertiajs/react';
+import {
+    AlertTriangle,
+    Calendar,
+    Check,
+    Clock,
+    DollarSign,
+    Eye,
+    Filter,
+    Image as ImageIcon,
+    MapPin,
+    Search,
+    ShoppingCart,
+    ToggleLeft,
+    ToggleRight,
+    Trash2,
+    User,
+    X,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -152,18 +149,6 @@ interface AdsIndexProps {
 }
 
 export default function AdsIndex({ ads, categories, governorates, priceTypes, conditions, filters }: AdsIndexProps) {
-    const [search, setSearch] = useState(filters.search || '');
-    const [status, setStatus] = useState(filters.status || 'all');
-    const [categoryId, setCategoryId] = useState(filters.category_id || 'all');
-    const [governorateId, setGovernorateId] = useState(filters.governorate_id || 'all');
-    const [priceTypeId, setPriceTypeId] = useState(filters.price_type_id || 'all');
-    const [conditionId, setConditionId] = useState(filters.condition_id || 'all');
-    const [isFeatured, setIsFeatured] = useState(filters.is_featured || 'all');
-    const [isApproved, setIsApproved] = useState(filters.is_approved || 'all');
-    const [isNegotiable, setIsNegotiable] = useState(filters.is_negotiable || 'all');
-    const [minPrice, setMinPrice] = useState(filters.min_price || '');
-    const [maxPrice, setMaxPrice] = useState(filters.max_price || '');
-    const [perPage, setPerPage] = useState(filters.per_page || '5');
     const [deletingAd, setDeletingAd] = useState<number | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -176,47 +161,60 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
 
     useErrorHandler();
 
+    // Use cached pagination hook
+    const {
+        data: cachedAds,
+        isLoading,
+        paginationState,
+        goToPage,
+        setPerPage,
+        setSearch,
+        updateFilter,
+    } = useCachedPagination<typeof ads>({
+        endpoint: '/admin/ads',
+        initialPage: ads.current_page,
+        initialPerPage: filters.per_page || '20',
+        initialSearch: filters.search || '',
+        initialFilters: {
+            status: filters.status || 'all',
+            category_id: filters.category_id || 'all',
+            governorate_id: filters.governorate_id || 'all',
+            price_type_id: filters.price_type_id || 'all',
+            condition_id: filters.condition_id || 'all',
+            is_featured: filters.is_featured || 'all',
+            is_approved: filters.is_approved || 'all',
+            is_negotiable: filters.is_negotiable || 'all',
+            min_price: filters.min_price || '',
+            max_price: filters.max_price || '',
+        },
+    });
+
+    // Use cached data if available, otherwise fall back to props
+    const adsData = cachedAds || ads;
+
+    // Show loading state if data is not available
+    if (isLoading && !adsData) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Ads Management" />
+                <div className="flex h-full flex-1 flex-col items-center justify-center gap-6 overflow-x-auto rounded-xl p-6">
+                    <div className="text-center">
+                        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-gray-900"></div>
+                        <p className="text-muted-foreground">Loading ads...</p>
+                    </div>
+                </div>
+            </AppLayout>
+        );
+    }
+
     // Debounced search effect
     useEffect(() => {
-        // Skip the effect on initial load
-        if (search === (filters.search || '') &&
-            status === (filters.status || 'all') &&
-            categoryId === (filters.category_id || 'all') &&
-            governorateId === (filters.governorate_id || 'all') &&
-            priceTypeId === (filters.price_type_id || 'all') &&
-            conditionId === (filters.condition_id || 'all') &&
-            isFeatured === (filters.is_featured || 'all') &&
-            isApproved === (filters.is_approved || 'all') &&
-            isNegotiable === (filters.is_negotiable || 'all') &&
-            minPrice === (filters.min_price || '') &&
-            maxPrice === (filters.max_price || '') &&
-            perPage === (filters.per_page || '20')) {
-            return;
-        }
-
         const timeoutId = setTimeout(() => {
-            router.get('/admin/ads', {
-                search: search || undefined,
-                status: status === 'all' ? undefined : status,
-                category_id: categoryId === 'all' ? undefined : categoryId,
-                governorate_id: governorateId === 'all' ? undefined : governorateId,
-                price_type_id: priceTypeId === 'all' ? undefined : priceTypeId,
-                condition_id: conditionId === 'all' ? undefined : conditionId,
-                is_featured: isFeatured === 'all' ? undefined : isFeatured,
-                is_approved: isApproved === 'all' ? undefined : isApproved,
-                is_negotiable: isNegotiable === 'all' ? undefined : isNegotiable,
-                min_price: minPrice || undefined,
-                max_price: maxPrice || undefined,
-                per_page: perPage,
-            }, {
-                preserveState: true,
-                replace: true,
-                preserveScroll: true,
-            });
+            setSearch(paginationState.search);
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [search, status, categoryId, governorateId, priceTypeId, conditionId, isFeatured, isApproved, isNegotiable, minPrice, maxPrice, perPage]);
+    }, [paginationState.search, setSearch]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -254,34 +252,41 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
     };
 
     const handleToggleStatus = (adId: number) => {
-        const ad = ads.data.find(a => a.id === adId);
+        const ad = ads.data.find((a) => a.id === adId);
         if (ad && ad.status === 'active') {
             // If ad is active and we're toggling to inactive, show reason dialog
             setInactivatingAd(adId);
             setIsInactiveDialogOpen(true);
         } else {
             // For other statuses, directly toggle
-            router.patch(`/admin/ads/${adId}/toggle-status`, {}, {
+            router.patch(
+                `/admin/ads/${adId}/toggle-status`,
+                {},
+                {
+                    onError: (errors) => {
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        alert(`Error: ${errorMessage}`);
+                    },
+                    preserveScroll: true,
+                },
+            );
+        }
+    };
+
+    const handleApprove = (adId: number) => {
+        router.patch(
+            `/admin/ads/${adId}/approve`,
+            {},
+            {
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
                     alert(`Error: ${errorMessage}`);
                 },
                 preserveScroll: true,
-            });
-        }
-    };
-
-
-    const handleApprove = (adId: number) => {
-        router.patch(`/admin/ads/${adId}/approve`, {}, {
-            onError: (errors) => {
-                const errorMessages = Object.values(errors).flat();
-                const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
             },
-            preserveScroll: true,
-        });
+        );
     };
 
     const handleReject = (adId: number) => {
@@ -291,46 +296,57 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
 
     const confirmReject = () => {
         if (rejectingAd && rejectReason.trim()) {
-            router.post(`/admin/ads/${rejectingAd}/reject`, {
-                reject_reason: rejectReason
-            }, {
-                onSuccess: () => {
-                    setIsRejectDialogOpen(false);
-                    setRejectingAd(null);
-                    setRejectReason('');
+            router.post(
+                `/admin/ads/${rejectingAd}/reject`,
+                {
+                    reject_reason: rejectReason,
                 },
+                {
+                    onSuccess: () => {
+                        setIsRejectDialogOpen(false);
+                        setRejectingAd(null);
+                        setRejectReason('');
+                    },
+                    onError: (errors) => {
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        alert(`Error: ${errorMessage}`);
+                    },
+                    preserveScroll: true,
+                },
+            );
+        }
+    };
+
+    const handleMarkAsSold = (adId: number) => {
+        router.patch(
+            `/admin/ads/${adId}/mark-sold`,
+            {},
+            {
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
                     alert(`Error: ${errorMessage}`);
                 },
                 preserveScroll: true,
-            });
-        }
-    };
-
-    const handleMarkAsSold = (adId: number) => {
-        router.patch(`/admin/ads/${adId}/mark-sold`, {}, {
-            onError: (errors) => {
-                const errorMessages = Object.values(errors).flat();
-                const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
             },
-            preserveScroll: true,
-        });
+        );
     };
 
     const handleMarkAsExpired = (adId: number) => {
-        router.patch(`/admin/ads/${adId}/mark-expired`, {}, {
-            onError: (errors) => {
-                const errorMessages = Object.values(errors).flat();
-                const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
+        router.patch(
+            `/admin/ads/${adId}/mark-expired`,
+            {},
+            {
+                onError: (errors) => {
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    alert(`Error: ${errorMessage}`);
+                },
+                preserveScroll: true,
             },
-            preserveScroll: true,
-        });
+        );
     };
-
 
     const handleDelete = (adId: number) => {
         setDeletingAd(adId);
@@ -344,21 +360,25 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
         }
 
         if (deletingAd) {
-            router.post(`/admin/ads/${deletingAd}/delete`, {
-                delete_reason: deleteReason
-            }, {
-                onSuccess: () => {
-                    setIsDeleteDialogOpen(false);
-                    setDeletingAd(null);
-                    setDeleteReason('');
+            router.post(
+                `/admin/ads/${deletingAd}/delete`,
+                {
+                    delete_reason: deleteReason,
                 },
-                onError: (errors) => {
-                    const errorMessages = Object.values(errors).flat();
-                    const errorMessage = errorMessages.join(', ');
-                    alert(`Error: ${errorMessage}`);
+                {
+                    onSuccess: () => {
+                        setIsDeleteDialogOpen(false);
+                        setDeletingAd(null);
+                        setDeleteReason('');
+                    },
+                    onError: (errors) => {
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        alert(`Error: ${errorMessage}`);
+                    },
+                    preserveScroll: true,
                 },
-                preserveScroll: true,
-            });
+            );
         }
     };
 
@@ -375,21 +395,25 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
         }
 
         if (inactivatingAd) {
-            router.post(`/admin/ads/${inactivatingAd}/mark-inactive`, {
-                inactive_reason: inactiveReason
-            }, {
-                onSuccess: () => {
-                    setIsInactiveDialogOpen(false);
-                    setInactivatingAd(null);
-                    setInactiveReason('');
+            router.post(
+                `/admin/ads/${inactivatingAd}/mark-inactive`,
+                {
+                    inactive_reason: inactiveReason,
                 },
-                onError: (errors) => {
-                    const errorMessages = Object.values(errors).flat();
-                    const errorMessage = errorMessages.join(', ');
-                    alert(`Error: ${errorMessage}`);
+                {
+                    onSuccess: () => {
+                        setIsInactiveDialogOpen(false);
+                        setInactivatingAd(null);
+                        setInactiveReason('');
+                    },
+                    onError: (errors) => {
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        alert(`Error: ${errorMessage}`);
+                    },
+                    preserveScroll: true,
                 },
-                preserveScroll: true,
-            });
+            );
         }
     };
 
@@ -404,7 +428,6 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
         setRejectingAd(null);
         setRejectReason('');
     };
-
 
     // Helper functions to determine available actions
     const canApprove = (ad: Ad) => {
@@ -434,7 +457,6 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
     const canMarkAsExpired = (ad: Ad) => {
         return ad.status === 'active' && ad.is_approved === true;
     };
-
 
     const canDelete = (ad: Ad) => {
         return ad.status !== 'sold';
@@ -471,11 +493,11 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 <div className="space-y-2">
                                     <Label htmlFor="search">Search</Label>
                                     <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                        <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                                         <Input
                                             id="search"
                                             placeholder="Search ads..."
-                                            value={search}
+                                            value={paginationState.search}
                                             onChange={(e) => setSearch(e.target.value)}
                                             className="pl-10"
                                         />
@@ -485,7 +507,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 {/* Status */}
                                 <div className="space-y-2">
                                     <Label htmlFor="status">Status</Label>
-                                    <Select value={status} onValueChange={setStatus}>
+                                    <Select value={paginationState.filters.status} onValueChange={(value) => updateFilter('status', value)}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -504,7 +526,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 {/* Category */}
                                 <div className="space-y-2">
                                     <Label htmlFor="category">Category</Label>
-                                    <Select value={categoryId} onValueChange={setCategoryId}>
+                                    <Select value={paginationState.filters.category_id} onValueChange={(value) => updateFilter('category_id', value)}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -522,7 +544,10 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 {/* Governorate */}
                                 <div className="space-y-2">
                                     <Label htmlFor="governorate">Governorate</Label>
-                                    <Select value={governorateId} onValueChange={setGovernorateId}>
+                                    <Select
+                                        value={paginationState.filters.governorate_id}
+                                        onValueChange={(value) => updateFilter('governorate_id', value)}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -540,7 +565,10 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 {/* Price Type */}
                                 <div className="space-y-2">
                                     <Label htmlFor="priceType">Price Type</Label>
-                                    <Select value={priceTypeId} onValueChange={setPriceTypeId}>
+                                    <Select
+                                        value={paginationState.filters.price_type_id}
+                                        onValueChange={(value) => updateFilter('price_type_id', value)}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -558,7 +586,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 {/* Records per page */}
                                 <div className="space-y-2">
                                     <Label htmlFor="perPage">Records per page</Label>
-                                    <Select value={perPage} onValueChange={setPerPage}>
+                                    <Select value={paginationState.perPage} onValueChange={setPerPage}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -574,11 +602,14 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                             </div>
 
                             {/* Additional Filters Row */}
-                            <div className="grid gap-4 lg:grid-cols-6 mt-4">
+                            <div className="mt-4 grid gap-4 lg:grid-cols-6">
                                 {/* Condition */}
                                 <div className="space-y-2">
                                     <Label htmlFor="condition">Condition</Label>
-                                    <Select value={conditionId} onValueChange={setConditionId}>
+                                    <Select
+                                        value={paginationState.filters.condition_id}
+                                        onValueChange={(value) => updateFilter('condition_id', value)}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -596,7 +627,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 {/* Featured */}
                                 <div className="space-y-2">
                                     <Label htmlFor="featured">Featured</Label>
-                                    <Select value={isFeatured} onValueChange={setIsFeatured}>
+                                    <Select value={paginationState.filters.is_featured} onValueChange={(value) => updateFilter('is_featured', value)}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -611,7 +642,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 {/* Approved */}
                                 <div className="space-y-2">
                                     <Label htmlFor="approved">Approval Status</Label>
-                                    <Select value={isApproved} onValueChange={setIsApproved}>
+                                    <Select value={paginationState.filters.is_approved} onValueChange={(value) => updateFilter('is_approved', value)}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -627,7 +658,10 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                 {/* Negotiable */}
                                 <div className="space-y-2">
                                     <Label htmlFor="negotiable">Negotiable</Label>
-                                    <Select value={isNegotiable} onValueChange={setIsNegotiable}>
+                                    <Select
+                                        value={paginationState.filters.is_negotiable}
+                                        onValueChange={(value) => updateFilter('is_negotiable', value)}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -646,8 +680,8 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                         id="minPrice"
                                         type="number"
                                         placeholder="0"
-                                        value={minPrice}
-                                        onChange={(e) => setMinPrice(e.target.value)}
+                                        value={paginationState.filters.min_price}
+                                        onChange={(e) => updateFilter('min_price', e.target.value)}
                                     />
                                 </div>
 
@@ -658,8 +692,8 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                         id="maxPrice"
                                         type="number"
                                         placeholder="1000"
-                                        value={maxPrice}
-                                        onChange={(e) => setMaxPrice(e.target.value)}
+                                        value={paginationState.filters.max_price}
+                                        onChange={(e) => updateFilter('max_price', e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -668,15 +702,13 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
 
                     {/* Ads List */}
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {ads.data.map((ad) => (
+                        {adsData?.data?.map((ad: Ad) => (
                             <Card key={ad.id} className="overflow-hidden">
                                 <CardHeader className="pb-3">
                                     <div className="flex items-start justify-between">
-                                        <div className="flex-1 min-w-0">
-                                            <CardTitle className="text-lg line-clamp-2 mb-2">
-                                                {ad.title_en}
-                                            </CardTitle>
-                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <div className="min-w-0 flex-1">
+                                            <CardTitle className="mb-2 line-clamp-2 text-lg">{ad.title_en}</CardTitle>
+                                            <div className="text-muted-foreground flex items-center gap-2 text-sm">
                                                 <User className="h-4 w-4" />
                                                 <span className="truncate">{ad.user.name_en}</span>
                                             </div>
@@ -684,45 +716,31 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                         <div className="flex flex-col items-end gap-2">
                                             {getStatusBadge(ad.status)}
                                             {getApprovalBadge(ad)}
-                                            {ad.is_featured && (
-                                                <Badge className="bg-yellow-100 text-yellow-800">
-                                                    Featured
-                                                </Badge>
-                                            )}
+                                            {ad.is_featured && <Badge className="bg-yellow-100 text-yellow-800">Featured</Badge>}
                                             <div className="flex items-center gap-1">
-                                                {ad.is_negotiable && (
-                                                    <DollarSign className="h-4 w-4 text-blue-500" />
-                                                )}
+                                                {ad.is_negotiable && <DollarSign className="h-4 w-4 text-blue-500" />}
                                             </div>
                                         </div>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     {/* Image */}
-                                    <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                                    <div className="bg-muted flex aspect-video items-center justify-center rounded-lg">
                                         {ad.primaryImage ? (
-                                            <img
-                                                src={ad.primaryImage.url}
-                                                alt={ad.title_en}
-                                                className="w-full h-full object-cover rounded-lg"
-                                            />
+                                            <img src={ad.primaryImage.url} alt={ad.title_en} className="h-full w-full rounded-lg object-cover" />
                                         ) : (
-                                            <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                                            <ImageIcon className="text-muted-foreground h-12 w-12" />
                                         )}
                                     </div>
 
                                     {/* Details */}
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-2xl font-bold text-primary">
-                                                {formatPrice(ad.price, ad.priceType?.name_en)}
-                                            </span>
-                                            <div className="text-sm text-muted-foreground">
-                                                {ad.views_count} views
-                                            </div>
+                                            <span className="text-primary text-2xl font-bold">{formatPrice(ad.price, ad.priceType?.name_en)}</span>
+                                            <div className="text-muted-foreground text-sm">{ad.views_count} views</div>
                                         </div>
-                                        
-                                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+
+                                        <div className="text-muted-foreground flex items-center gap-4 text-sm">
                                             <div className="flex items-center gap-1">
                                                 <MapPin className="h-4 w-4" />
                                                 {ad.governorate?.name_en || 'N/A'}
@@ -742,16 +760,12 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex items-center justify-between pt-4 border-t">
+                                    <div className="flex items-center justify-between border-t pt-4">
                                         <div className="flex items-center gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => router.get(`/admin/ads/${ad.id}`)}
-                                            >
+                                            <Button variant="ghost" size="sm" onClick={() => router.get(`/admin/ads/${ad.id}`)}>
                                                 <Eye className="h-4 w-4" />
                                             </Button>
-                                            
+
                                             {/* Draft Status - Only View and Delete */}
                                             {ad.status === 'draft' && (
                                                 <Dialog open={isDeleteDialogOpen && deletingAd === ad.id} onOpenChange={setIsDeleteDialogOpen}>
@@ -785,26 +799,28 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                             </div>
                                                         </div>
                                                         <DialogFooter>
-                                                            <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
-                                                            <Button
-                                                                variant="destructive"
-                                                                onClick={confirmDelete}
-                                                                disabled={!deleteReason.trim()}
-                                                            >
+                                                            <Button variant="outline" onClick={handleCancelDelete}>
+                                                                Cancel
+                                                            </Button>
+                                                            <Button variant="destructive" onClick={confirmDelete} disabled={!deleteReason.trim()}>
                                                                 Delete Ad
                                                             </Button>
                                                         </DialogFooter>
                                                     </DialogContent>
                                                 </Dialog>
                                             )}
-                                            
+
                                             {/* For all other statuses except sold and draft */}
                                             {canToggleStatus(ad) && (
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleToggleStatus(ad.id)}
-                                                    className={ad.status === 'active' ?'text-green-600 hover:text-green-700' : 'text-red-600 hover:text-red-700' }
+                                                    className={
+                                                        ad.status === 'active'
+                                                            ? 'text-green-600 hover:text-green-700'
+                                                            : 'text-red-600 hover:text-red-700'
+                                                    }
                                                     title={ad.status === 'active' ? 'Deactivate' : 'Activate'}
                                                 >
                                                     {ad.status === 'active' ? (
@@ -814,7 +830,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                     )}
                                                 </Button>
                                             )}
-                                            
+
                                             {/* Approval Actions - For all ads */}
                                             {canApprove(ad) && (
                                                 <Button
@@ -827,7 +843,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                     <Check className="h-4 w-4" />
                                                 </Button>
                                             )}
-                                            
+
                                             {canReject(ad) && (
                                                 <Button
                                                     variant="ghost"
@@ -839,7 +855,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                     <X className="h-4 w-4" />
                                                 </Button>
                                             )}
-                                            
+
                                             {/* Status Change Actions - Only for active and approved ads */}
                                             {canMarkAsSold(ad) && (
                                                 <Button
@@ -852,7 +868,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                     <ShoppingCart className="h-4 w-4" />
                                                 </Button>
                                             )}
-                                            
+
                                             {canMarkAsExpired(ad) && (
                                                 <Button
                                                     variant="ghost"
@@ -864,10 +880,9 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                     <Clock className="h-4 w-4" />
                                                 </Button>
                                             )}
-                                            
-                                            
+
                                             {/* Delete Action - For all except sold and draft, or for delete status */}
-                                            {(canDelete(ad) && ad.status !== 'draft' && ad.status !== 'delete') && (
+                                            {canDelete(ad) && ad.status !== 'draft' && ad.status !== 'delete' && (
                                                 <Dialog open={isDeleteDialogOpen && deletingAd === ad.id} onOpenChange={setIsDeleteDialogOpen}>
                                                     <DialogTrigger asChild>
                                                         <Button
@@ -899,19 +914,17 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                                                             </div>
                                                         </div>
                                                         <DialogFooter>
-                                                            <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
-                                                            <Button
-                                                                variant="destructive"
-                                                                onClick={confirmDelete}
-                                                                disabled={!deleteReason.trim()}
-                                                            >
+                                                            <Button variant="outline" onClick={handleCancelDelete}>
+                                                                Cancel
+                                                            </Button>
+                                                            <Button variant="destructive" onClick={confirmDelete} disabled={!deleteReason.trim()}>
                                                                 Delete Ad
                                                             </Button>
                                                         </DialogFooter>
                                                     </DialogContent>
                                                 </Dialog>
                                             )}
-                                            
+
                                             {/* Final State Indicator */}
                                             {isInFinalState(ad) && (
                                                 <div className="flex items-center gap-1 text-blue-600">
@@ -927,27 +940,27 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                     </div>
 
                     {/* Empty State */}
-                    {ads.data.length === 0 && (
+                    {adsData?.data?.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-12">
-                            <ImageIcon className="h-12 w-12 text-muted-foreground mb-4" />
-                            <h3 className="text-lg font-semibold mb-2">No ads found</h3>
+                            <ImageIcon className="text-muted-foreground mb-4 h-12 w-12" />
+                            <h3 className="mb-2 text-lg font-semibold">No ads found</h3>
                             <p className="text-muted-foreground mb-4">Try adjusting your filters to see more results.</p>
                         </div>
                     )}
 
                     {/* Pagination */}
-                    {ads.data.length > 0 && (
+                    {adsData?.data && adsData.data.length > 0 && (
                         <div className="flex items-center justify-between px-4">
-                            <div className="text-sm text-muted-foreground">
-                                Showing {ads.from} - {ads.to} of {ads.total} ads
+                            <div className="text-muted-foreground text-sm">
+                                Showing {adsData.from} - {adsData.to} of {adsData.total} ads
                             </div>
                             <div className="flex items-center space-x-2">
                                 {/* Previous Button */}
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => router.get(ads.prev_page_url || '', {}, { preserveScroll: true })}
-                                    disabled={!ads.prev_page_url}
+                                    onClick={() => goToPage(adsData.current_page - 1)}
+                                    disabled={adsData.current_page <= 1}
                                 >
                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -956,76 +969,70 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
 
                                 {/* Page Numbers */}
                                 <div className="flex items-center space-x-1">
-                                    {Array.from({ length: Math.min(5, ads.last_page) }, (_, i) => {
-                                        const page = i + 1;
-                                        const isActive = page === ads.current_page;
-                                        
-                                        return (
-                                            <Button
-                                                key={page}
-                                                variant={isActive ? "default" : "outline"}
-                                                size="sm"
-                                                className={`w-10 h-10 ${isActive ? 'bg-black text-white hover:bg-black' : ''}`}
-                                                onClick={() => {
-                                                    const params = new URLSearchParams();
-                                                    if (search && search.trim()) params.append('search', search);
-                                                    if (status && status !== 'all') params.append('status', status);
-                                                    if (isApproved && isApproved !== 'all') params.append('is_approved', isApproved);
-                                                    if (categoryId && categoryId !== 'all') params.append('category_id', categoryId);
-                                                    if (governorateId && governorateId !== 'all') params.append('governorate_id', governorateId);
-                                                    if (priceTypeId && priceTypeId !== 'all') params.append('price_type_id', priceTypeId);
-                                                    if (conditionId && conditionId !== 'all') params.append('condition_id', conditionId);
-                                                    if (isNegotiable && isNegotiable !== 'all') params.append('is_negotiable', isNegotiable);
-                                                    if (minPrice && minPrice.trim()) params.append('min_price', minPrice);
-                                                    if (maxPrice && maxPrice.trim()) params.append('max_price', maxPrice);
-                                                    if (perPage && perPage !== 'all') params.append('per_page', perPage);
-                                                    params.append('page', page.toString());
-                                                    
-                                                    router.get(`/admin/ads?${params.toString()}`, {}, { preserveScroll: true });
-                                                }}
-                                            >
-                                                {page}
-                                            </Button>
-                                        );
-                                    })}
-                                    
-                                    {ads.last_page > 5 && (
-                                        <>
-                                            <span className="px-2 text-muted-foreground">...</span>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="w-10 h-10"
-                                                onClick={() => {
-                                                    const params = new URLSearchParams();
-                                                    if (search && search.trim()) params.append('search', search);
-                                                    if (status && status !== 'all') params.append('status', status);
-                                                    if (isApproved && isApproved !== 'all') params.append('is_approved', isApproved);
-                                                    if (categoryId && categoryId !== 'all') params.append('category_id', categoryId);
-                                                    if (governorateId && governorateId !== 'all') params.append('governorate_id', governorateId);
-                                                    if (priceTypeId && priceTypeId !== 'all') params.append('price_type_id', priceTypeId);
-                                                    if (conditionId && conditionId !== 'all') params.append('condition_id', conditionId);
-                                                    if (isNegotiable && isNegotiable !== 'all') params.append('is_negotiable', isNegotiable);
-                                                    if (minPrice && minPrice.trim()) params.append('min_price', minPrice);
-                                                    if (maxPrice && maxPrice.trim()) params.append('max_price', maxPrice);
-                                                    if (perPage && perPage !== 'all') params.append('per_page', perPage);
-                                                    params.append('page', ads.last_page.toString());
-                                                    
-                                                    router.get(`/admin/ads?${params.toString()}`, {}, { preserveScroll: true });
-                                                }}
-                                            >
-                                                {ads.last_page}
-                                            </Button>
-                                        </>
-                                    )}
+                                    {(() => {
+                                        const current = adsData.current_page;
+                                        const last = adsData.last_page;
+                                        const delta = 2; // Number of pages to show on each side of current page
+                                        const range = [];
+                                        const rangeWithDots = [];
+
+                                        // Calculate the range of pages to show
+                                        for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
+                                            range.push(i);
+                                        }
+
+                                        // Always show first page
+                                        if (current - delta > 2) {
+                                            rangeWithDots.push(1, '...');
+                                        } else {
+                                            rangeWithDots.push(1);
+                                        }
+
+                                        // Add the calculated range (excluding first and last)
+                                        rangeWithDots.push(...range);
+
+                                        // Always show last page (if it's not already included)
+                                        if (last > 1) {
+                                            if (current + delta < last - 1) {
+                                                rangeWithDots.push('...', last);
+                                            } else if (!range.includes(last)) {
+                                                rangeWithDots.push(last);
+                                            }
+                                        }
+
+                                        return rangeWithDots.map((page, index) => {
+                                            if (page === '...') {
+                                                return (
+                                                    <span key={`dots-${index}`} className="text-muted-foreground px-2">
+                                                        ...
+                                                    </span>
+                                                );
+                                            }
+
+                                            const pageNum = page as number;
+                                            const isActive = pageNum === current;
+
+                                            return (
+                                                <Button
+                                                    key={pageNum}
+                                                    variant={isActive ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    className={`h-10 w-10 ${isActive ? 'bg-black text-white hover:bg-black' : ''}`}
+                                                    onClick={() => goToPage(pageNum)}
+                                                >
+                                                    {pageNum}
+                                                </Button>
+                                            );
+                                        });
+                                    })()}
                                 </div>
 
                                 {/* Next Button */}
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => router.get(ads.next_page_url || '', {}, { preserveScroll: true })}
-                                    disabled={!ads.next_page_url}
+                                    onClick={() => goToPage(adsData!.current_page + 1)}
+                                    disabled={adsData!.current_page >= adsData!.last_page}
                                 >
                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -1059,12 +1066,10 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={handleCancelReject}>Cancel</Button>
-                            <Button
-                                variant="destructive"
-                                onClick={confirmReject}
-                                disabled={!rejectReason.trim()}
-                            >
+                            <Button variant="outline" onClick={handleCancelReject}>
+                                Cancel
+                            </Button>
+                            <Button variant="destructive" onClick={confirmReject} disabled={!rejectReason.trim()}>
                                 Reject Ad
                             </Button>
                         </DialogFooter>
@@ -1076,9 +1081,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Mark as Inactive</DialogTitle>
-                            <DialogDescription>
-                                Please provide a reason for marking this ad as inactive.
-                            </DialogDescription>
+                            <DialogDescription>Please provide a reason for marking this ad as inactive.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
                             <div>
@@ -1094,18 +1097,15 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={handleCancelInactive}>Cancel</Button>
-                            <Button
-                                variant="destructive"
-                                onClick={confirmInactive}
-                                disabled={!inactiveReason.trim()}
-                            >
+                            <Button variant="outline" onClick={handleCancelInactive}>
+                                Cancel
+                            </Button>
+                            <Button variant="destructive" onClick={confirmInactive} disabled={!inactiveReason.trim()}>
                                 Mark as Inactive
                             </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-
             </>
         </AppLayout>
     );

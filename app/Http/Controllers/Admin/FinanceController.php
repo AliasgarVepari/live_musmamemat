@@ -1,12 +1,11 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserSubscription;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Response;
+use Inertia\Inertia;
 
 class FinanceController extends Controller
 {
@@ -19,7 +18,7 @@ class FinanceController extends Controller
             $search = $request->search;
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name_en', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -47,26 +46,32 @@ class FinanceController extends Controller
             $query->where('amount_paid', '<=', $request->amount_max);
         }
 
+        // Get per_page parameter with validation
+        $perPage = $request->get('per_page', 10);
+        $perPage = in_array($perPage, [5, 10, 20, 50, 100]) ? (int) $perPage : 10;
+
         // Get transactions with pagination
-        $transactions = $query->orderBy('created_at', 'desc')->paginate(20);
+        $transactions = $query->orderBy('created_at', 'desc')
+            ->paginate($perPage)
+            ->withQueryString();
 
         // Calculate summary statistics
-        $totalRevenue = UserSubscription::where('status', 'active')->sum('amount_paid');
-        $totalTransactions = UserSubscription::count();
+        $totalRevenue        = UserSubscription::where('status', 'active')->sum('amount_paid');
+        $totalTransactions   = UserSubscription::count();
         $activeSubscriptions = UserSubscription::where('status', 'active')->count();
-        $monthlyRevenue = UserSubscription::where('status', 'active')
+        $monthlyRevenue      = UserSubscription::where('status', 'active')
             ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->sum('amount_paid');
 
         return Inertia::render('admin/finance/index', [
             'transactions' => $transactions,
-            'filters' => $request->only(['search', 'status', 'payment_method', 'date_from', 'date_to', 'amount_min', 'amount_max']),
-            'stats' => [
-                'total_revenue' => $totalRevenue,
-                'total_transactions' => $totalTransactions,
+            'filters'      => $request->only(['search', 'status', 'payment_method', 'date_from', 'date_to', 'amount_min', 'amount_max', 'per_page']),
+            'stats'        => [
+                'total_revenue'        => $totalRevenue,
+                'total_transactions'   => $totalTransactions,
                 'active_subscriptions' => $activeSubscriptions,
-                'monthly_revenue' => $monthlyRevenue,
+                'monthly_revenue'      => $monthlyRevenue,
             ],
         ]);
     }
@@ -80,7 +85,7 @@ class FinanceController extends Controller
             $search = $request->search;
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name_en', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -110,7 +115,7 @@ class FinanceController extends Controller
 
         $transactions = $query->orderBy('created_at', 'desc')->get();
 
-        $csvData = [];
+        $csvData   = [];
         $csvData[] = [
             'Transaction ID',
             'User Name',
@@ -143,7 +148,7 @@ class FinanceController extends Controller
 
         $filename = 'transactions_' . now()->format('Y-m-d_H-i-s') . '.csv';
 
-        $callback = function() use ($csvData) {
+        $callback = function () use ($csvData) {
             $file = fopen('php://output', 'w');
             foreach ($csvData as $row) {
                 fputcsv($file, $row);
@@ -152,7 +157,7 @@ class FinanceController extends Controller
         };
 
         return Response::stream($callback, 200, [
-            'Content-Type' => 'text/csv',
+            'Content-Type'        => 'text/csv',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }

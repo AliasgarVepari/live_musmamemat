@@ -22,6 +22,7 @@ interface Category {
     slug: string;
     icon_url?: string;
     status: 'active' | 'inactive';
+    sort_order?: number;
     created_at: string;
     updated_at: string;
 }
@@ -71,7 +72,7 @@ export default function CategoriesIndex({ categories, filters }: CategoriesIndex
             background-color: rgba(0, 0, 0, 0.3);
             animation: fadeIn 0.2s ease-out;
         `;
-        
+
         dialog.innerHTML = `
             <div style="
                 background: white;
@@ -286,6 +287,11 @@ export default function CategoriesIndex({ categories, filters }: CategoriesIndex
                                                     <div className="flex items-center space-x-2">
                                                         <h3 className="font-medium">{category.name_en}</h3>
                                                         {getStatusBadge(category.status)}
+                                                        {category.sort_order && (
+                                                            <Badge variant="outline" className="text-xs">
+                                                                Order: {category.sort_order}
+                                                            </Badge>
+                                                        )}
                                                     </div>
                                                     <div className="text-muted-foreground flex items-center space-x-4 text-sm">
                                                         <span>Arabic: {category.name_ar}</span>

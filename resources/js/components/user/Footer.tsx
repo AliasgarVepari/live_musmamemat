@@ -1,10 +1,30 @@
 import { Button } from '@/components/user/ui/button';
 import { Separator } from '@/components/user/ui/separator';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Instagram, MessageCircle, Phone } from 'lucide-react';
+import { useSocialLinksQuery } from '@/hooks/user/queries/use-social-links-query';
+import { Facebook, Instagram, Linkedin, MessageCircle, Phone, Twitter, Youtube } from 'lucide-react';
+
+// Icon mapping for social platforms
+const getSocialIcon = (platform: string) => {
+    const iconMap: { [key: string]: any } = {
+        facebook: Facebook,
+        instagram: Instagram,
+        twitter: Twitter,
+        youtube: Youtube,
+        linkedin: Linkedin,
+        whatsapp: MessageCircle,
+        telegram: Phone,
+    };
+    return iconMap[platform.toLowerCase()] || Facebook;
+};
 
 export const Footer = () => {
     const { language, t } = useLanguage();
+    const { data: socialLinks, isLoading } = useSocialLinksQuery();
+
+    const handleSocialClick = (url: string) => {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
 
     return (
         <footer className="bg-ink-900 text-white">
@@ -22,15 +42,42 @@ export const Footer = () => {
 
                         {/* Social Links */}
                         <div className="flex space-x-4 rtl:space-x-reverse">
-                            <Button variant="icon" size="icon" className="hover:text-brand-red-600 text-white">
-                                <Instagram className="h-4 w-4 stroke-[1.5]" />
-                            </Button>
-                            <Button variant="icon" size="icon" className="hover:text-brand-red-600 text-white">
-                                <MessageCircle className="h-4 w-4 stroke-[1.5]" />
-                            </Button>
-                            <Button variant="icon" size="icon" className="hover:text-brand-red-600 text-white">
-                                <Phone className="h-4 w-4 stroke-[1.5]" />
-                            </Button>
+                            {isLoading ? (
+                                <div className="flex space-x-4">
+                                    {[1, 2, 3].map((i) => (
+                                        <div key={i} className="h-10 w-10 animate-pulse rounded-full bg-gray-600" />
+                                    ))}
+                                </div>
+                            ) : socialLinks && socialLinks.length > 0 ? (
+                                socialLinks.map((socialLink, index) => {
+                                    const IconComponent = getSocialIcon(socialLink.platform);
+                                    return (
+                                        <Button
+                                            key={index}
+                                            variant="icon"
+                                            size="icon"
+                                            onClick={() => handleSocialClick(socialLink.url)}
+                                            className="hover:text-brand-red-600 text-white"
+                                            title={`Visit our ${socialLink.platform}`}
+                                        >
+                                            <IconComponent className="h-4 w-4 stroke-[1.5]" />
+                                        </Button>
+                                    );
+                                })
+                            ) : (
+                                // Fallback social links
+                                <>
+                                    <Button variant="icon" size="icon" className="hover:text-brand-red-600 text-white">
+                                        <Instagram className="h-4 w-4 stroke-[1.5]" />
+                                    </Button>
+                                    <Button variant="icon" size="icon" className="hover:text-brand-red-600 text-white">
+                                        <MessageCircle className="h-4 w-4 stroke-[1.5]" />
+                                    </Button>
+                                    <Button variant="icon" size="icon" className="hover:text-brand-red-600 text-white">
+                                        <Phone className="h-4 w-4 stroke-[1.5]" />
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </div>
 

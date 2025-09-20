@@ -1,26 +1,25 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Banner;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class BannerController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Banner::query();
+        $query = Banner::query()->where('status', '!=', 'delete');
 
         // Apply filters
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('image_url', 'like', "%{$search}%")
-                  ->orWhere('link_url', 'like', "%{$search}%");
+                $q->where('image_url_en', 'like', "%{$search}%")
+                    ->orWhere('image_url_ar', 'like', "%{$search}%");
             });
         }
 
@@ -56,7 +55,7 @@ class BannerController extends Controller
             'image_en' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'image_ar' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'position' => 'required|in:top,bottom',
-            'status' => 'required|in:active,inactive',
+            'status'   => 'required|in:active,inactive',
         ]);
 
         $imageUrlEn = null;
@@ -64,31 +63,31 @@ class BannerController extends Controller
 
         // Handle English image upload
         if ($request->hasFile('image_en')) {
-            $image = $request->file('image_en');
-            $imageName = time() . '_en_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('banners', $imageName, 's3');
+            $image      = $request->file('image_en');
+            $imageName  = time() . '_en_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+            $imagePath  = $image->storeAs('banners', $imageName, 's3');
             $imageUrlEn = Storage::disk('s3')->url($imagePath);
         }
 
         // Handle Arabic image upload
         if ($request->hasFile('image_ar')) {
-            $image = $request->file('image_ar');
-            $imageName = time() . '_ar_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('banners', $imageName, 's3');
+            $image      = $request->file('image_ar');
+            $imageName  = time() . '_ar_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+            $imagePath  = $image->storeAs('banners', $imageName, 's3');
             $imageUrlAr = Storage::disk('s3')->url($imagePath);
         }
 
         Banner::create([
-            'image_url_en' => $imageUrlEn,
-            'image_url_ar' => $imageUrlAr,
-            'position' => $request->position,
-            'status' => $request->status,
-            'created_by' => 'admin',
-            'created_by_id' => auth()->id(),
-            'is_approved' => true, // Admin created banners are auto-approved
+            'image_url_en'  => $imageUrlEn,
+            'image_url_ar'  => $imageUrlAr,
+            'position'      => $request->position,
+            'status'        => $request->status,
+            'created_by'    => 'admin',
+            'created_by_id' => auth('admin')->id(),
+            'is_approved'   => true, // Admin created banners are auto-approved
         ]);
 
-        return redirect()->route('admin.banners.index')
+        return redirect()->route('banners.index')
             ->with('success', 'Banner created successfully.');
     }
 
@@ -112,25 +111,28 @@ class BannerController extends Controller
             'image_en' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'image_ar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'position' => 'required|in:top,bottom',
-            'status' => 'required|in:active,inactive',
+            'status'   => 'required|in:active,inactive',
         ]);
 
         $data = [
             'position' => $request->position,
-            'status' => $request->status,
+            'status'   => $request->status,
         ];
 
         // Handle English image upload if new image is provided
         if ($request->hasFile('image_en')) {
             // Delete old English image
             if ($banner->image_url_en) {
-                $oldImagePath = str_replace(Storage::disk('s3')->url(''), '', $banner->image_url_en);
-                Storage::disk('s3')->delete($oldImagePath);
+                $oldImagePath = parse_url($banner->image_url_en, PHP_URL_PATH);
+                $oldImagePath = ltrim($oldImagePath, '/');
+                if (! empty($oldImagePath)) {
+                    Storage::disk('s3')->delete($oldImagePath);
+                }
             }
 
-            $image = $request->file('image_en');
-            $imageName = time() . '_en_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('banners', $imageName, 's3');
+            $image                = $request->file('image_en');
+            $imageName            = time() . '_en_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+            $imagePath            = $image->storeAs('banners', $imageName, 's3');
             $data['image_url_en'] = Storage::disk('s3')->url($imagePath);
         }
 
@@ -138,45 +140,38 @@ class BannerController extends Controller
         if ($request->hasFile('image_ar')) {
             // Delete old Arabic image
             if ($banner->image_url_ar) {
-                $oldImagePath = str_replace(Storage::disk('s3')->url(''), '', $banner->image_url_ar);
-                Storage::disk('s3')->delete($oldImagePath);
+                $oldImagePath = parse_url($banner->image_url_ar, PHP_URL_PATH);
+                $oldImagePath = ltrim($oldImagePath, '/');
+                if (! empty($oldImagePath)) {
+                    Storage::disk('s3')->delete($oldImagePath);
+                }
             }
 
-            $image = $request->file('image_ar');
-            $imageName = time() . '_ar_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('banners', $imageName, 's3');
+            $image                = $request->file('image_ar');
+            $imageName            = time() . '_ar_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+            $imagePath            = $image->storeAs('banners', $imageName, 's3');
             $data['image_url_ar'] = Storage::disk('s3')->url($imagePath);
         }
 
         $banner->update($data);
 
-        return redirect()->route('admin.banners.index')
+        return redirect()->route('banners.index')
             ->with('success', 'Banner updated successfully.');
     }
 
     public function destroy(Banner $banner)
     {
-        // Delete images from storage
-        if ($banner->image_url_en) {
-            $imagePath = str_replace(Storage::disk('s3')->url(''), '', $banner->image_url_en);
-            Storage::disk('s3')->delete($imagePath);
-        }
-        
-        if ($banner->image_url_ar) {
-            $imagePath = str_replace(Storage::disk('s3')->url(''), '', $banner->image_url_ar);
-            Storage::disk('s3')->delete($imagePath);
-        }
+        // Soft delete by changing status to 'delete'
+        $banner->update(['status' => 'delete']);
 
-        $banner->delete();
-
-        return redirect()->route('admin.banners.index')
+        return redirect()->route('banners.index')
             ->with('success', 'Banner deleted successfully.');
     }
 
     public function toggleStatus(Banner $banner)
     {
         $banner->update([
-            'status' => $banner->status === 'active' ? 'inactive' : 'active'
+            'status' => $banner->status === 'active' ? 'inactive' : 'active',
         ]);
 
         return back()->with('success', 'Banner status updated successfully.');

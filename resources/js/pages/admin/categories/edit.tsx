@@ -29,6 +29,7 @@ interface Category {
     slug: string;
     icon_url?: string;
     status: 'active' | 'inactive';
+    sort_order?: number;
     created_at: string;
     updated_at: string;
 }
@@ -44,6 +45,7 @@ export default function EditCategory({ category }: EditCategoryProps) {
         icon: null as File | null,
         icon_url: category.icon_url,
         status: category.status,
+        sort_order: category.sort_order?.toString() || '',
         remove_icon: false,
     });
 
@@ -116,7 +118,7 @@ export default function EditCategory({ category }: EditCategoryProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-       
+
         router.post(
             `/admin/categories/${category.id}`,
             {
@@ -227,6 +229,24 @@ export default function EditCategory({ category }: EditCategoryProps) {
                                             <option value="inactive">Inactive</option>
                                         </select>
                                         <InputError message={errors.status} />
+                                    </div>
+
+                                    {/* Sort Order */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="sort_order">Sort Order</Label>
+                                        <Input
+                                            id="sort_order"
+                                            type="number"
+                                            value={data.sort_order}
+                                            onChange={(e) => setData('sort_order', e.target.value)}
+                                            placeholder="Enter sort order (1, 2, 3, 4...)"
+                                            min="1"
+                                            className={errors.sort_order ? 'border-destructive' : ''}
+                                        />
+                                        <p className="text-muted-foreground text-sm">
+                                            Optional. Categories with sort order 1-4 will appear on the home page. Must be unique.
+                                        </p>
+                                        <InputError message={errors.sort_order} />
                                     </div>
                                 </div>
 

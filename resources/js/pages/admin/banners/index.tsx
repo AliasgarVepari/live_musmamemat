@@ -1,26 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
-import AppLayout from '@/layouts/admin/app-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/admin/ui/dialog';
 import { Input } from '@/components/admin/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
-import { Badge } from '@/components/admin/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/admin/ui/dialog';
-import { 
-    Image as ImageIcon, 
-    Plus, 
-    Search, 
-    Filter, 
-    Eye, 
-    Edit, 
-    Trash2, 
-    ToggleRight, 
-    ToggleLeft,
-    ExternalLink
-} from 'lucide-react';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
+import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { Head, Link, router } from '@inertiajs/react';
+import { Edit, Filter, Image as ImageIcon, Plus, Search, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Banners',
@@ -75,16 +64,20 @@ export default function Index({ banners, filters }: Props) {
     // Debounced search effect
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            router.get('/admin/banners', {
-                search: search || undefined,
-                position: position === 'all' ? undefined : position,
-                status: status === 'all' ? undefined : status,
-                is_approved: isApproved === 'all' ? undefined : isApproved,
-            }, {
-                preserveState: true,
-                replace: true,
-                preserveScroll: true,
-            });
+            router.get(
+                '/admin/banners',
+                {
+                    search: search || undefined,
+                    position: position === 'all' ? undefined : position,
+                    status: status === 'all' ? undefined : status,
+                    is_approved: isApproved === 'all' ? undefined : isApproved,
+                },
+                {
+                    preserveState: true,
+                    replace: true,
+                    preserveScroll: true,
+                },
+            );
         }, 300);
 
         return () => clearTimeout(timeoutId);
@@ -115,14 +108,18 @@ export default function Index({ banners, filters }: Props) {
     };
 
     const handleToggleStatus = (bannerId: number) => {
-        router.patch(`/admin/banners/${bannerId}/toggle`, {}, {
-            onError: (errors) => {
-                const errorMessages = Object.values(errors).flat();
-                const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
+        router.patch(
+            `/admin/banners/${bannerId}/toggle`,
+            {},
+            {
+                onError: (errors) => {
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    alert(`Error: ${errorMessage}`);
+                },
+                preserveScroll: true,
             },
-            preserveScroll: true,
-        });
+        );
     };
 
     const handleDelete = (bannerId: number) => {
@@ -155,7 +152,7 @@ export default function Index({ banners, filters }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Banners" />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -180,11 +177,11 @@ export default function Index({ banners, filters }: Props) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                             <div>
                                 <label className="text-sm font-medium">Search</label>
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
                                     <Input
                                         placeholder="Search banners..."
                                         value={search}
@@ -193,7 +190,7 @@ export default function Index({ banners, filters }: Props) {
                                     />
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <label className="text-sm font-medium">Position</label>
                                 <Select value={position} onValueChange={setPosition}>
@@ -241,7 +238,7 @@ export default function Index({ banners, filters }: Props) {
                 </Card>
 
                 {/* Banners Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {banners.data.map((banner) => (
                         <Card key={banner.id} className="overflow-hidden">
                             <CardHeader className="pb-3">
@@ -255,43 +252,35 @@ export default function Index({ banners, filters }: Props) {
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => handleToggleStatus(banner.id)}
-                                            className={banner.status === 'active' ? 'text-green-600 hover:text-green-700' : 'text-orange-600 hover:text-orange-700'}
+                                            className={
+                                                banner.status === 'active'
+                                                    ? 'text-green-600 hover:text-green-700'
+                                                    : 'text-orange-600 hover:text-orange-700'
+                                            }
                                             title={banner.status === 'active' ? 'Deactivate' : 'Activate'}
                                         >
-                                            {banner.status === 'active' ? (
-                                                <ToggleLeft className="h-4 w-4" />
-                                            ) : (
-                                                <ToggleRight className="h-4 w-4" />
-                                            )}
+                                            {banner.status === 'active' ? <ToggleLeft className="h-4 w-4" /> : <ToggleRight className="h-4 w-4" />}
                                         </Button>
                                     </div>
                                 </div>
                             </CardHeader>
-                            
+
                             <CardContent className="space-y-4">
                                 {/* Banner Images */}
                                 <div className="space-y-3">
                                     {/* English Image */}
                                     <div>
-                                        <div className="text-xs font-medium text-gray-600 mb-1">English</div>
-                                        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                                            <img
-                                                src={banner.image_url_en}
-                                                alt="English Banner"
-                                                className="w-full h-full object-cover"
-                                            />
+                                        <div className="mb-1 text-xs font-medium text-gray-600">English</div>
+                                        <div className="bg-muted flex aspect-video items-center justify-center overflow-hidden rounded-lg">
+                                            <img src={banner.image_url_en} alt="English Banner" className="h-full w-full object-cover" />
                                         </div>
                                     </div>
-                                    
+
                                     {/* Arabic Image */}
                                     <div>
-                                        <div className="text-xs font-medium text-gray-600 mb-1">Arabic</div>
-                                        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                                            <img
-                                                src={banner.image_url_ar}
-                                                alt="Arabic Banner"
-                                                className="w-full h-full object-cover"
-                                            />
+                                        <div className="mb-1 text-xs font-medium text-gray-600">Arabic</div>
+                                        <div className="bg-muted flex aspect-video items-center justify-center overflow-hidden rounded-lg">
+                                            <img src={banner.image_url_ar} alt="Arabic Banner" className="h-full w-full object-cover" />
                                         </div>
                                     </div>
                                 </div>
@@ -306,12 +295,12 @@ export default function Index({ banners, filters }: Props) {
 
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 pt-2">
-                                    <Link href={`/admin/banners/${banner.id}`}>
+                                    {/* <Link href={`/admin/banners/${banner.id}`}>
                                         <Button variant="outline" size="sm">
                                             <Eye className="h-4 w-4" />
                                         </Button>
-                                    </Link>
-                                    
+                                    </Link> */}
+
                                     <Link href={`/admin/banners/${banner.id}/edit`}>
                                         <Button variant="outline" size="sm">
                                             <Edit className="h-4 w-4" />
@@ -338,8 +327,12 @@ export default function Index({ banners, filters }: Props) {
                                                     </DialogDescription>
                                                 </DialogHeader>
                                                 <DialogFooter>
-                                                    <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
-                                                    <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+                                                    <Button variant="outline" onClick={handleCancelDelete}>
+                                                        Cancel
+                                                    </Button>
+                                                    <Button variant="destructive" onClick={confirmDelete}>
+                                                        Delete
+                                                    </Button>
                                                 </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
@@ -354,14 +347,14 @@ export default function Index({ banners, filters }: Props) {
                 {banners.data.length === 0 && (
                     <Card>
                         <CardContent className="flex flex-col items-center justify-center py-12">
-                            <ImageIcon className="h-12 w-12 text-gray-400 mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">No banners found</h3>
-                            <p className="text-gray-500 text-center mb-4">
+                            <ImageIcon className="mb-4 h-12 w-12 text-gray-400" />
+                            <h3 className="mb-2 text-lg font-medium text-gray-900">No banners found</h3>
+                            <p className="mb-4 text-center text-gray-500">
                                 {search || position !== 'all' || status !== 'all' || isApproved !== 'all'
                                     ? 'No banners match your current filters.'
                                     : 'Get started by creating your first banner.'}
                             </p>
-                            {(!search && position === 'all' && status === 'all' && isApproved === 'all') && (
+                            {!search && position === 'all' && status === 'all' && isApproved === 'all' && (
                                 <Link href="/admin/banners/create">
                                     <Button>
                                         <Plus className="mr-2 h-4 w-4" />
@@ -398,12 +391,12 @@ export default function Index({ banners, filters }: Props) {
                                     Previous
                                 </Button>
                             )}
-                            
+
                             <div className="flex items-center gap-1">
                                 {Array.from({ length: banners.last_page }, (_, i) => i + 1).map((page) => (
                                     <Button
                                         key={page}
-                                        variant={page === banners.current_page ? "default" : "outline"}
+                                        variant={page === banners.current_page ? 'default' : 'outline'}
                                         size="sm"
                                         onClick={() => {
                                             const params = new URLSearchParams();

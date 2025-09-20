@@ -1,14 +1,13 @@
 import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
 import { FileUpload } from '@/components/admin/ui/file-upload';
-import { Input } from '@/components/admin/ui/input';
 import { Label } from '@/components/admin/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import React, { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -38,7 +37,7 @@ export default function Create() {
     const handleImageChange = (file: File | null, type: 'en' | 'ar') => {
         if (type === 'en') {
             setData('image_en', file);
-            
+
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -50,7 +49,7 @@ export default function Create() {
             }
         } else {
             setData('image_ar', file);
-            
+
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -65,7 +64,7 @@ export default function Create() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         post('/admin/banners', {
             forceFormData: true,
         });
@@ -97,7 +96,12 @@ export default function Create() {
                             <CardContent className="space-y-4">
                                 <div>
                                     <Label htmlFor="image_en">English Image *</Label>
-                                    <FileUpload onFileSelect={(file) => handleImageChange(file, 'en')} accept=".png,.jpg,.jpeg,.gif,.svg" className="mt-1" />
+                                    <FileUpload
+                                        label="Upload Image"
+                                        onFileSelect={(file) => handleImageChange(file, 'en')}
+                                        accept=".png,.jpg,.jpeg,.gif,.svg"
+                                        className="mt-1"
+                                    />
                                     {errors.image_en && <p className="mt-1 text-sm text-red-600">{errors.image_en}</p>}
                                 </div>
 
@@ -108,19 +112,6 @@ export default function Create() {
                                         <div className="bg-muted flex aspect-video items-center justify-center overflow-hidden rounded-lg">
                                             <img src={previewEn} alt="English banner preview" className="h-full w-full object-cover" />
                                         </div>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                setData('image_en', null);
-                                                setPreviewEn(null);
-                                            }}
-                                            className="w-full"
-                                        >
-                                            <X className="mr-2 h-4 w-4" />
-                                            Remove English Image
-                                        </Button>
                                     </div>
                                 )}
                             </CardContent>
@@ -134,7 +125,12 @@ export default function Create() {
                             <CardContent className="space-y-4">
                                 <div>
                                     <Label htmlFor="image_ar">Arabic Image *</Label>
-                                    <FileUpload onFileSelect={(file) => handleImageChange(file, 'ar')} accept=".png,.jpg,.jpeg,.gif,.svg" className="mt-1" />
+                                    <FileUpload
+                                        label="Upload Image"
+                                        onFileSelect={(file) => handleImageChange(file, 'ar')}
+                                        accept=".png,.jpg,.jpeg,.gif,.svg"
+                                        className="mt-1"
+                                    />
                                     {errors.image_ar && <p className="mt-1 text-sm text-red-600">{errors.image_ar}</p>}
                                 </div>
 
@@ -145,19 +141,6 @@ export default function Create() {
                                         <div className="bg-muted flex aspect-video items-center justify-center overflow-hidden rounded-lg">
                                             <img src={previewAr} alt="Arabic banner preview" className="h-full w-full object-cover" />
                                         </div>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                setData('image_ar', null);
-                                                setPreviewAr(null);
-                                            }}
-                                            className="w-full"
-                                        >
-                                            <X className="mr-2 h-4 w-4" />
-                                            Remove Arabic Image
-                                        </Button>
                                     </div>
                                 )}
                             </CardContent>
@@ -170,7 +153,7 @@ export default function Create() {
                             <CardTitle>Banner Details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
                                     <Label htmlFor="position">Position *</Label>
                                     <Select value={data.position} onValueChange={(value: 'top' | 'bottom') => setData('position', value)}>

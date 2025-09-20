@@ -1,53 +1,53 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Api\User\CategoriesController as ApiCategoriesController;
+use App\Http\Controllers\Api\User\ConditionsController as ApiConditionsController;
+use App\Http\Controllers\Api\User\GovernoratesController as ApiGovernoratesController;
+use App\Http\Controllers\Api\User\PriceTypesController as ApiPriceTypesController;
+use App\Http\Controllers\Api\User\ProductApiController as ApiProductsController;
+use App\Http\Controllers\User\HomeController;
+use App\Http\Controllers\User\ProductController;
+use App\Http\Controllers\User\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::prefix('/')->group(function () {
-    // Route::get('/', fn() => Inertia::render('user/Index'));
-    // Route::get('/products', fn() => Inertia::render('user/ProductListing'));
-    // Route::get('/category/:slug', fn() => Inertia::render('user/CategoryListing'));
-    // Route::get('/product/:id', fn() => Inertia::render('user/ProductDetail'));
-    // Route::get('/sell/*', fn() => Inertia::render('user/SellWizard'));
-    // Route::get('/wishlist', fn() => Inertia::render('user/Wishlist'));
-    // Route::get('/profile', fn() => Inertia::render('user/Profile'));
-    // Route::get('/search', fn() => Inertia::render('user/Search'));
+    // Home page
+    Route::get('/', [HomeController::class, 'index'])->name('user.home');
 
-    // Public/user site
-    Route::get('/', fn() => Inertia::render('user/Index'))
-        ->name('user.home');
+    // Search functionality
+    Route::get('/search', [HomeController::class, 'search'])->name('user.search');
+    Route::post('/search', [HomeController::class, 'search'])->name('user.search.post');
 
-    Route::get('/products', function (Request $request) {
-        // Read query param: ?category=all
-        $category = $request->query('category', 'all'); // default to 'all' if missing
+    // Product listing and details
+    Route::get('/products', [ApiProductsController::class, 'index'])->name('user.products.index');
+    Route::get('/product/{id}', [ProductController::class, 'show'])->whereNumber('id')->name('user.product.show');
+    Route::get('/product/search', [ProductController::class, 'search'])->name('user.product.search');
 
-        return Inertia::render('user/ProductListing', [
-            'category' => $category,
-        ]);
-    })->name('user.products.index');
+    // Category listing (redirect to products with category filter)
+    Route::get('/category/{slug}', function (string $slug) {
+        return redirect()->route('user.products.index', ['category' => $slug]);
+    })->name('user.category.show');
 
-    Route::get('/category/{slug}', fn(string $slug) => Inertia::render('user/CategoryListing', [
-        'slug' => $slug,
-    ]))->name('user.category.show');
-
-    Route::get('/product/{id}', fn(int $id) => Inertia::render('user/ProductDetail', [
-        'id' => $id,
-    ]))->whereNumber('id')->name('user.product.show');
+    // API routes for React Query
+    Route::prefix('api')->group(function () {
+        Route::get('/categories', [ApiCategoriesController::class, 'index'])->name('api.user.categories');
+        Route::get('/governorates', [ApiGovernoratesController::class, 'index'])->name('api.user.governorates');
+        Route::get('/conditions', [ApiConditionsController::class, 'index'])->name('api.user.conditions');
+        Route::get('/price-types', [ApiPriceTypesController::class, 'index'])->name('api.user.price-types');
+    });
 
     // Catch-all under /sell (e.g., /sell, /sell/step-1, /sell/anything/here)
     Route::get('/sell/{any?}', fn() => Inertia::render('user/SellWizard'))
         ->where('any', '.*')->name('user.sell');
 
     Route::get('/wishlist', fn() => Inertia::render('user/Wishlist'))
-    // ->middleware(['auth', 'verified']) // if wishlist requires auth; remove if public
         ->name('user.wishlist');
 
-    Route::get('/profile', fn() => Inertia::render('user/Profile'))
-    // ->middleware(['auth', 'verified']) // usually protected
-        ->name('user.profile');
-
-    Route::get('/search', fn() => Inertia::render('user/Search'))
-        ->name('user.search');
-
+    Route::get('/profile', [ProfileController::class, 'index'])->name('user.profile');
+    Route::post('/profile', [ProfileController::class, 'update'])->name('user.profile.update');
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('user.profile.avatar');
+    Route::get('/profile/ads', [ProfileController::class, 'getAds'])->name('user.profile.ads');
+    Route::get('/profile/wishlist', [ProfileController::class, 'getWishlist'])->name('user.profile.wishlist');
+    Route::post('/profile/upgrade', [ProfileController::class, 'upgradeSubscription'])->name('user.profile.upgrade');
 });

@@ -3,24 +3,13 @@ import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
 import { Input } from '@/components/admin/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
+import { useCachedPagination } from '@/hooks/admin/use-cached-pagination';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link as InertiaLink, router } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
-import { 
-    Eye, 
-    Filter, 
-    MoreHorizontal, 
-    Search, 
-    Shield, 
-    ShieldCheck, 
-    ShieldX, 
-    Trash2, 
-    User, 
-    UserCheck, 
-    UserX 
-} from 'lucide-react';
+import { Eye, Filter, Search, Shield, ShieldCheck, ShieldX, Trash2, User, UserCheck, UserX } from 'lucide-react';
+import { useEffect } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -83,50 +72,68 @@ interface UsersIndexProps {
 }
 
 export default function UsersIndex({ users, governorates, filters }: UsersIndexProps) {
-    const [search, setSearch] = useState(filters.search || '');
-    const [subscriptionStatus, setSubscriptionStatus] = useState(filters.subscription_status || 'all');
-    const [status, setStatus] = useState(filters.status || 'all');
-    const [governorateId, setGovernorateId] = useState(filters.governorate_id || 'all');
-    const [perPage, setPerPage] = useState(filters.per_page || '5');
-
     useErrorHandler();
 
-    // Auto-refresh when filters change (but not on initial load)
-    useEffect(() => {
-        // Skip the effect on initial load
-        if (search === (filters.search || '') && 
-            subscriptionStatus === (filters.subscription_status || 'all') && 
-            status === (filters.status || 'all') && 
-            governorateId === (filters.governorate_id || 'all') && 
-            perPage === (filters.per_page || '20')) {
-            return;
-        }
+    // Use cached pagination hook
+    const {
+        data: cachedUsers,
+        isLoading,
+        paginationState,
+        goToPage,
+        setPerPage,
+        setSearch,
+        updateFilter,
+    } = useCachedPagination<typeof users>({
+        endpoint: '/admin/users',
+        initialPage: users.current_page,
+        initialPerPage: filters.per_page || '20',
+        initialSearch: filters.search || '',
+        initialFilters: {
+            subscription_status: filters.subscription_status || 'all',
+            status: filters.status || 'all',
+            governorate_id: filters.governorate_id || 'all',
+        },
+    });
 
+    // Use cached data if available, otherwise fall back to props
+    const usersData = cachedUsers || users;
+
+    // Show loading state if data is not available
+    if (isLoading && !usersData) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Users Management" />
+                <div className="flex h-full flex-1 flex-col items-center justify-center gap-6 overflow-x-auto rounded-xl p-6">
+                    <div className="text-center">
+                        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-gray-900"></div>
+                        <p className="text-muted-foreground">Loading users...</p>
+                    </div>
+                </div>
+            </AppLayout>
+        );
+    }
+
+    // Debounced search effect
+    useEffect(() => {
         const timeoutId = setTimeout(() => {
-            router.get('/admin/users', {
-                search,
-                subscription_status: subscriptionStatus === 'all' ? '' : subscriptionStatus,
-                status: status === 'all' ? '' : status,
-                governorate_id: governorateId === 'all' ? '' : governorateId,
-                per_page: perPage,
-            }, {
-                preserveState: true,
-                replace: true,
-            });
-        }, 300); // Debounce for 300ms
+            setSearch(paginationState.search);
+        }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [search, subscriptionStatus, status, governorateId, perPage]);
-
+    }, [paginationState.search, setSearch]);
 
     const handleToggleStatus = (userId: number) => {
-        router.patch(`/admin/users/${userId}/toggle`, {}, {
-            onError: (errors) => {
-                const errorMessages = Object.values(errors).flat();
-                const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
+        router.patch(
+            `/admin/users/${userId}/toggle`,
+            {},
+            {
+                onError: (errors) => {
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    alert(`Error: ${errorMessage}`);
+                },
             },
-        });
+        );
     };
 
     const handleDelete = (userId: number) => {
@@ -203,9 +210,7 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Users Management</h1>
-                            <p className="text-muted-foreground">
-                                Manage user accounts, subscriptions, and permissions
-                            </p>
+                            <p className="text-muted-foreground">Manage user accounts, subscriptions, and permissions</p>
                         </div>
                     </div>
 
@@ -216,9 +221,7 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                 <Filter className="h-5 w-5" />
                                 Filters
                             </CardTitle>
-                            <CardDescription>
-                                Search and filter users by various criteria
-                            </CardDescription>
+                            <CardDescription>Search and filter users by various criteria</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
@@ -226,10 +229,10 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Search</label>
                                     <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                        <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                                         <Input
                                             placeholder="Search users..."
-                                            value={search}
+                                            value={paginationState.search}
                                             onChange={(e) => setSearch(e.target.value)}
                                             className="pl-10"
                                         />
@@ -239,7 +242,10 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                 {/* Subscription Status */}
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Subscription</label>
-                                    <Select value={subscriptionStatus} onValueChange={setSubscriptionStatus}>
+                                    <Select
+                                        value={paginationState.filters.subscription_status}
+                                        onValueChange={(value) => updateFilter('subscription_status', value)}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue placeholder="All subscriptions" />
                                         </SelectTrigger>
@@ -255,7 +261,7 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                 {/* Account Status */}
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Status</label>
-                                    <Select value={status} onValueChange={setStatus}>
+                                    <Select value={paginationState.filters.status} onValueChange={(value) => updateFilter('status', value)}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="All statuses" />
                                         </SelectTrigger>
@@ -271,7 +277,10 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                 {/* Governorate */}
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Governorate</label>
-                                    <Select value={governorateId} onValueChange={setGovernorateId}>
+                                    <Select
+                                        value={paginationState.filters.governorate_id}
+                                        onValueChange={(value) => updateFilter('governorate_id', value)}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue placeholder="All governorates" />
                                         </SelectTrigger>
@@ -289,7 +298,7 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                 {/* Per Page */}
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Records per page</label>
-                                    <Select value={perPage} onValueChange={setPerPage}>
+                                    <Select value={paginationState.perPage} onValueChange={setPerPage}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Records per page" />
                                         </SelectTrigger>
@@ -302,41 +311,34 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                         </SelectContent>
                                     </Select>
                                 </div>
-
                             </div>
                         </CardContent>
                     </Card>
 
                     {/* Users List */}
                     <div className="grid gap-4">
-                        {users.data.map((user) => (
-                            <Card key={user.id} className="hover:shadow-md transition-shadow">
+                        {usersData?.data?.map((user: User) => (
+                            <Card key={user.id} className="transition-shadow hover:shadow-md">
                                 <CardContent className="p-6">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                                                <User className="h-6 w-6 text-primary" />
+                                            <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-full">
+                                                <User className="text-primary h-6 w-6" />
                                             </div>
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
-                                                    <h3 className="font-semibold">
-                                                        {user.name_en}
-                                                    </h3>
+                                                    <h3 className="font-semibold">{user.name_en}</h3>
                                                     {getStatusBadge(user.status)}
                                                     {getSubscriptionBadge(user)}
                                                 </div>
-                                                <p className="text-sm text-muted-foreground">{user.email}</p>
-                                                <p className="text-sm text-muted-foreground">{user.phone}</p>
-                                                {user.governorate && (
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {user.governorate.name_en}
-                                                    </p>
-                                                )}
+                                                <p className="text-muted-foreground text-sm">{user.email}</p>
+                                                <p className="text-muted-foreground text-sm">{user.phone}</p>
+                                                {user.governorate && <p className="text-muted-foreground text-sm">{user.governorate.name_en}</p>}
                                             </div>
                                         </div>
 
                                         <div className="flex items-center space-x-2">
-                                            <div className="text-right text-sm text-muted-foreground">
+                                            <div className="text-muted-foreground text-right text-sm">
                                                 <div>{user.ads_count} ads</div>
                                                 <div>{user.ad_views_count} views</div>
                                             </div>
@@ -346,16 +348,8 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                                         <Eye className="h-4 w-4" />
                                                     </InertiaLink>
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleToggleStatus(user.id)}
-                                                >
-                                                    {user.status === 'active' ? (
-                                                        <UserX className="h-4 w-4" />
-                                                    ) : (
-                                                        <UserCheck className="h-4 w-4" />
-                                                    )}
+                                                <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(user.id)}>
+                                                    {user.status === 'active' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
@@ -373,78 +367,126 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                         ))}
                     </div>
 
+                    {/* Empty State */}
+                    {usersData?.data?.length === 0 && (
+                        <Card>
+                            <CardContent className="flex flex-col items-center justify-center py-12">
+                                <Users className="mb-4 h-12 w-12 text-gray-400" />
+                                <h3 className="mb-2 text-lg font-medium text-gray-900">No users found</h3>
+                                <p className="text-center text-gray-500">
+                                    {paginationState.search ||
+                                    paginationState.filters.subscription_status !== 'all' ||
+                                    paginationState.filters.status !== 'all' ||
+                                    paginationState.filters.governorate_id !== 'all'
+                                        ? 'No users match your current filters.'
+                                        : 'No users have registered yet. Users will appear here once they sign up.'}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Pagination - Bottom of page */}
-                    {users.links && users.links.length > 0 && users.total && (
+                    {usersData?.data && usersData.data.length > 0 && (
                         <div className="flex items-center justify-between px-4">
                             {/* Record Count Information */}
-                            <div className="text-base text-gray-700 font-medium">
-                                {users.from} - {users.to} of {users.total} users
+                            <div className="text-base font-medium text-gray-700">
+                                {usersData.from} - {usersData.to} of {usersData.total} users
                             </div>
 
                             {/* Pagination Controls */}
                             <div className="flex items-center space-x-3">
                                 {/* Previous Arrow */}
                                 <button
-                                    onClick={() => users.links[0]?.url && router.get(users.links[0].url, {}, { preserveScroll: true })}
-                                    disabled={!users.links[0]?.url}
-                                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
-                                        users.links[0]?.url 
-                                            ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' 
-                                            : 'text-gray-300 cursor-not-allowed'
+                                    onClick={() => goToPage(usersData.current_page - 1)}
+                                    disabled={usersData.current_page <= 1}
+                                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                                        usersData.current_page > 1
+                                            ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                            : 'cursor-not-allowed text-gray-300'
                                     }`}
                                 >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                     </svg>
                                 </button>
 
                                 {/* Page Numbers */}
-                                <div className="flex items-center space-x-2">
-                                    {users.links.slice(1, -1).map((link, index) => {
-                                        // Skip "..." labels and show only actual page numbers
-                                        if (link.label === '...') {
-                                            return (
-                                                <span key={index} className="px-3 text-gray-500 text-base">
-                                                    ...
-                                                </span>
-                                            );
+                                <div className="flex items-center space-x-1">
+                                    {(() => {
+                                        const current = usersData.current_page;
+                                        const last = usersData.last_page;
+                                        const delta = 2; // Number of pages to show on each side of current page
+                                        const range = [];
+                                        const rangeWithDots = [];
+
+                                        // Calculate the range of pages to show
+                                        for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
+                                            range.push(i);
                                         }
-                                        
-                                        return (
-                                            <button
-                                                key={index}
-                                                onClick={() => link.url && router.get(link.url, {}, { preserveScroll: true })}
-                                                disabled={!link.url}
-                                                className={`w-10 h-10 flex items-center justify-center rounded-full text-base font-medium transition-colors ${
-                                                    link.active
-                                                        ? 'bg-black text-white'
-                                                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                                                }`}
-                                            >
-                                                {link.label}
-                                            </button>
-                                        );
-                                    })}
+
+                                        // Always show first page
+                                        if (current - delta > 2) {
+                                            rangeWithDots.push(1, '...');
+                                        } else {
+                                            rangeWithDots.push(1);
+                                        }
+
+                                        // Add the calculated range (excluding first and last)
+                                        rangeWithDots.push(...range);
+
+                                        // Always show last page (if it's not already included)
+                                        if (last > 1) {
+                                            if (current + delta < last - 1) {
+                                                rangeWithDots.push('...', last);
+                                            } else if (!range.includes(last)) {
+                                                rangeWithDots.push(last);
+                                            }
+                                        }
+
+                                        return rangeWithDots.map((page, index) => {
+                                            if (page === '...') {
+                                                return (
+                                                    <span key={`dots-${index}`} className="text-muted-foreground px-2">
+                                                        ...
+                                                    </span>
+                                                );
+                                            }
+
+                                            const pageNum = page as number;
+                                            const isActive = pageNum === current;
+
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => goToPage(pageNum)}
+                                                    className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-medium transition-colors ${
+                                                        isActive ? 'bg-black text-white' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                                                    }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        });
+                                    })()}
                                 </div>
 
                                 {/* Next Arrow */}
                                 <button
-                                    onClick={() => users.links[users.links.length - 1]?.url && router.get(users.links[users.links.length - 1].url, {}, { preserveScroll: true })}
-                                    disabled={!users.links[users.links.length - 1]?.url}
-                                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
-                                        users.links[users.links.length - 1]?.url 
-                                            ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' 
-                                            : 'text-gray-300 cursor-not-allowed'
+                                    onClick={() => goToPage(usersData.current_page + 1)}
+                                    disabled={usersData.current_page >= usersData.last_page}
+                                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                                        usersData.current_page < usersData.last_page
+                                            ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                            : 'cursor-not-allowed text-gray-300'
                                     }`}
                                 >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </button>
                             </div>
                         </div>
                     )}
-
                 </div>
             </>
         </AppLayout>

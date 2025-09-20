@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes/admin';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Crown, DollarSign, Folder, Grid3X3, LayoutGrid, Link as LinkIcon, MapPin, Settings, Tag, Users, Megaphone, Image, BarChart3 } from 'lucide-react';
+import { BarChart3, Crown, DollarSign, Grid3X3, Image, LayoutGrid, Link as LinkIcon, MapPin, Megaphone, Settings, Tag, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -87,14 +87,8 @@ const collapsibleNavItems = [
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
+        title: 'Made with ❤️ By VGA',
+        href: 'https://www.vgaadvisory.com/',
     },
 ];
 
@@ -119,7 +113,7 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                {/* <NavFooter items={footerNavItems} className="mt-auto" /> */}
+                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

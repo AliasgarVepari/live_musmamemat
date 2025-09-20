@@ -14,6 +14,7 @@ class Category extends Model
         'slug',
         'icon_url',
         'status',
+        'sort_order',
     ];
 
     protected function casts(): array

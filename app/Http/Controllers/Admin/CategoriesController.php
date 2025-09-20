@@ -23,7 +23,7 @@ class CategoriesController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Category::orderBy('name_en');
+        $query = Category::orderBy('sort_order')->orderBy('name_en');
 
         // Apply filters
         if ($request->filled('search')) {
@@ -78,10 +78,11 @@ class CategoriesController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name_en' => 'required|string|max:255',
-            'name_ar' => 'required|string|max:255',
-            'icon'    => 'required|mimes:svg,svgz|max:10240',
-            'status'  => 'required|in:active,inactive',
+            'name_en'    => 'required|string|max:255',
+            'name_ar'    => 'required|string|max:255',
+            'icon'       => 'required|mimes:svg,svgz|max:10240',
+            'status'     => 'required|in:active,inactive',
+            'sort_order' => 'nullable|integer|min:1',
         ]);
 
         $slug = Str::slug($request->name_en);
@@ -89,6 +90,13 @@ class CategoriesController extends Controller
         // Check for duplicate slug
         if (Category::where('slug', $slug)->exists()) {
             return back()->withErrors(['name_en' => 'A category with this name already exists.']);
+        }
+
+        // Check for duplicate sort_order if provided
+        if ($request->filled('sort_order')) {
+            if (Category::where('sort_order', $request->sort_order)->exists()) {
+                return back()->withErrors(['sort_order' => 'A category with this sort order already exists.']);
+            }
         }
 
         try {
@@ -99,11 +107,12 @@ class CategoriesController extends Controller
             }
 
             Category::create([
-                'name_en'   => $validated['name_en'],
-                'name_ar'   => $validated['name_ar'],
-                'slug'      => $slug,
-                'icon_url'  => $validated['icon_url'] ?? null,
-                'status'    => $validated['status'],
+                'name_en'    => $validated['name_en'],
+                'name_ar'    => $validated['name_ar'],
+                'slug'       => $slug,
+                'icon_url'   => $validated['icon_url'] ?? null,
+                'status'     => $validated['status'],
+                'sort_order' => $validated['sort_order'] ?? null,
             ]);
 
             return redirect()->route('categories.index')
@@ -129,10 +138,11 @@ class CategoriesController extends Controller
     public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
-            'name_en' => 'required|string|max:255',
-            'name_ar' => 'required|string|max:255',
-            'icon'    => 'required|mimes:svg,svgz|max:10240',
-            'status'  => 'required|in:active,inactive',
+            'name_en'     => 'required|string|max:255',
+            'name_ar'     => 'required|string|max:255',
+            'icon'        => 'nullable|mimes:svg,svgz|max:10240',
+            'status'      => 'required|in:active,inactive',
+            'sort_order'  => 'nullable|integer|min:1',
             'remove_icon' => 'nullable|boolean',
         ]);
 
@@ -141,6 +151,13 @@ class CategoriesController extends Controller
         // Check for duplicate slug (excluding current category)
         if (Category::where('slug', $slug)->where('id', '!=', $category->id)->exists()) {
             return back()->withErrors(['name_en' => 'A category with this name already exists.']);
+        }
+
+        // Check for duplicate sort_order if provided (excluding current category)
+        if ($request->filled('sort_order')) {
+            if (Category::where('sort_order', $request->sort_order)->where('id', '!=', $category->id)->exists()) {
+                return back()->withErrors(['sort_order' => 'A category with this sort order already exists.']);
+            }
         }
 
         try {
@@ -165,11 +182,12 @@ class CategoriesController extends Controller
             }
 
             $category->update([
-                'name_en'   => $validated['name_en'],
-                'name_ar'   => $validated['name_ar'],
-                'slug'      => $slug,
-                'icon_url'  => $validated['icon_url'],
-                'status'    => $validated['status'],
+                'name_en'    => $validated['name_en'],
+                'name_ar'    => $validated['name_ar'],
+                'slug'       => $slug,
+                'icon_url'   => $validated['icon_url'],
+                'status'     => $validated['status'],
+                'sort_order' => $validated['sort_order'] ?? null,
             ]);
 
             return redirect()->route('categories.index')

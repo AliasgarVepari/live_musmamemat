@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link as InertiaLink, useForm } from '@inertiajs/react';
 import { ArrowLeft, Tag } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,6 +28,7 @@ export default function CreateCategory() {
         name_ar: '',
         icon: null as File | null,
         status: 'active' as 'active' | 'inactive',
+        sort_order: '',
     });
 
     const [iconFile, setIconFile] = useState<File | null>(null);
@@ -181,9 +182,7 @@ export default function CreateCategory() {
                                             maxSize={10}
                                             className={errors.icon ? 'border-destructive' : ''}
                                         />
-                                        <p className="text-sm text-muted-foreground">
-                                            Upload an SVG file for the category icon. Maximum size: 10MB
-                                        </p>
+                                        <p className="text-muted-foreground text-sm">Upload an SVG file for the category icon. Maximum size: 10MB</p>
                                         <InputError message={errors.icon} />
                                     </div>
 
@@ -200,6 +199,24 @@ export default function CreateCategory() {
                                             <option value="inactive">Inactive</option>
                                         </select>
                                         <InputError message={errors.status} />
+                                    </div>
+
+                                    {/* Sort Order */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="sort_order">Sort Order</Label>
+                                        <Input
+                                            id="sort_order"
+                                            type="number"
+                                            value={data.sort_order}
+                                            onChange={(e) => setData('sort_order', e.target.value)}
+                                            placeholder="Enter sort order (1, 2, 3, 4...)"
+                                            min="1"
+                                            className={errors.sort_order ? 'border-destructive' : ''}
+                                        />
+                                        <p className="text-muted-foreground text-sm">
+                                            Optional. Categories with sort order 1-4 will appear on the home page. Must be unique.
+                                        </p>
+                                        <InputError message={errors.sort_order} />
                                     </div>
                                 </div>
 
