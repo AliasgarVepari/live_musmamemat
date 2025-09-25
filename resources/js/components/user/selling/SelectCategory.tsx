@@ -1,8 +1,9 @@
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Card } from "@/components/user/ui/card";
+import { Card, CardContent } from "@/components/user/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/user/ui/radio-group";
 import { Label } from "@/components/user/ui/label";
-import { SellFormData } from "./SellWizard";
+import { SellFormData } from "../../pages/user/SellWizard";
 import { 
   ShoppingBag, 
   Shirt, 
@@ -13,7 +14,8 @@ import {
   Gamepad2,
   Smartphone,
   Plane,
-  Home
+  Home,
+  Package
 } from "lucide-react";
 
 interface SelectCategoryProps {
@@ -21,66 +23,157 @@ interface SelectCategoryProps {
   updateFormData: (data: Partial<SellFormData>) => void;
 }
 
-const categories = [
-  { value: 'handbags', icon: ShoppingBag, labelKey: 'category.handbags' },
-  { value: 'clothing', icon: Shirt, labelKey: 'category.clothing' },
-  { value: 'jewelry', icon: Gem, labelKey: 'category.jewelry' },
-  { value: 'beauty-care', icon: Sparkles, labelKey: 'category.beauty' },
-  { value: 'accessories', icon: Watch, labelKey: 'category.accessories' },
-  { value: 'children', icon: Baby, labelKey: 'category.children' },
-  { value: 'toys', icon: Gamepad2, labelKey: 'category.toys' },
-  { value: 'electronics', icon: Smartphone, labelKey: 'category.electronics' },
-  { value: 'travel', icon: Plane, labelKey: 'category.travel' },
-  { value: 'home-furniture', icon: Home, labelKey: 'category.home' },
-  { value: 'watches', icon: Watch, labelKey: 'category.watches' },
-];
+interface Category {
+  id: number;
+  name_en: string;
+  name_ar: string;
+  slug: string;
+  icon_url?: string;
+}
+
+const getCategoryIcon = (categoryName: string, categorySlug: string) => {
+  const name = categoryName.toLowerCase();
+  const slug = categorySlug.toLowerCase();
+  
+  if (name.includes('handbag') || name.includes('bag') || slug.includes('handbag') || slug.includes('bag')) {
+    return ShoppingBag;
+  }
+  if (name.includes('clothing') || name.includes('clothes') || name.includes('shirt') || slug.includes('clothing') || slug.includes('clothes')) {
+    return Shirt;
+  }
+  if (name.includes('jewelry') || name.includes('jewellery') || name.includes('gem') || slug.includes('jewelry') || slug.includes('jewellery')) {
+    return Gem;
+  }
+  if (name.includes('watch') || name.includes('watches') || slug.includes('watch') || slug.includes('watches')) {
+    return Watch;
+  }
+  if (name.includes('beauty') || name.includes('care') || slug.includes('beauty') || slug.includes('care')) {
+    return Sparkles;
+  }
+  if (name.includes('children') || name.includes('baby') || slug.includes('children') || slug.includes('baby')) {
+    return Baby;
+  }
+  if (name.includes('gaming') || name.includes('game') || slug.includes('gaming') || slug.includes('game')) {
+    return Gamepad2;
+  }
+  if (name.includes('phone') || name.includes('mobile') || slug.includes('phone') || slug.includes('mobile')) {
+    return Smartphone;
+  }
+  if (name.includes('travel') || name.includes('plane') || slug.includes('travel') || slug.includes('plane')) {
+    return Plane;
+  }
+  if (name.includes('home') || name.includes('garden') || slug.includes('home') || slug.includes('garden')) {
+    return Home;
+  }
+  
+  // Default fallback
+  return Package;
+};
 
 export const SelectCategory = ({ formData, updateFormData }: SelectCategoryProps) => {
   const { language, t } = useLanguage();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const response = await fetch('/api/user/categories');
+        const data = await response.json();
+        setCategories(data.categories || data);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  const handleCategoryChange = (categoryId: string) => {
+    updateFormData({ category_id: parseInt(categoryId) });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className={language === 'ar' ? 'font-arabic' : ''}>
+            {language === 'ar' ? 'جاري تحميل الفئات...' : 'Loading categories...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${language === 'ar' ? 'rtl' : 'ltr'}`}>
+      <div className="text-center">
+        <h3 className={`text-lg font-semibold mb-2 ${language === 'ar' ? 'font-arabic' : ''}`}>
+          {language === 'ar' ? 'اختر فئة المنتج' : 'Select Product Category'}
+        </h3>
+        <p className={`text-muted-foreground ${language === 'ar' ? 'font-arabic' : ''}`}>
+          {language === 'ar' ? 'اختر الفئة التي تنتمي إليها منتجك' : 'Choose the category that best fits your product'}
+        </p>
+      </div>
+
       <RadioGroup
-        value={formData.category}
-        onValueChange={(value) => updateFormData({ category: value })}
+        value={formData.category_id?.toString() || ''}
+        onValueChange={handleCategoryChange}
         className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
       >
         {categories.map((category) => {
-          const Icon = category.icon;
+          const categoryName = language === 'ar' ? category.name_ar : category.name_en;
+          const IconComponent = getCategoryIcon(categoryName, category.slug);
+          const isSelected = formData.category_id === category.id;
+          
           return (
-            <div key={category.value}>
-              <RadioGroupItem value={category.value} id={category.value} className="sr-only" />
+            <div key={category.id}>
+              <RadioGroupItem
+                value={category.id.toString()}
+                id={`category-${category.id}`}
+                className="peer sr-only"
+              />
               <Label
-                htmlFor={category.value}
-                className="cursor-pointer"
+                htmlFor={`category-${category.id}`}
+                onClick={() => handleCategoryChange(category.id.toString())}
+                className={`group flex flex-col items-center justify-center p-6 border-2 rounded-lg cursor-pointer transition-all ${
+                  isSelected 
+                    ? 'border-primary bg-primary/10 shadow-md' 
+                    : 'border-muted-foreground/25 hover:border-primary hover:bg-primary/5'
+                }`}
               >
-                <Card className={`p-6 text-center transition-all duration-200 hover:shadow-lg ${
-                  formData.category === category.value 
-                    ? 'ring-2 ring-luxury-gold bg-luxury-ivory' 
-                    : 'hover:bg-luxury-ivory/50'
+                <div className={`mb-3 p-3 rounded-full transition-all ${
+                  isSelected 
+                    ? 'bg-primary text-white' 
+                    : 'bg-muted/20 text-muted-foreground group-hover:bg-primary group-hover:text-white'
                 }`}>
-                  <Icon className="h-8 w-8 mx-auto mb-3 text-luxury-black stroke-[1.5]" />
-                  <span className={`text-sm font-medium text-luxury-black ${
-                    language === 'ar' ? 'font-arabic' : ''
-                  }`}>
-                    {t(category.labelKey)}
-                  </span>
-                </Card>
+                  {category.icon_url ? (
+                    <img
+                      src={category.icon_url}
+                      alt={categoryName}
+                      className={`h-12 w-12 object-contain transition-all ${
+                        isSelected 
+                          ? 'brightness-0 invert' 
+                          : 'group-hover:brightness-0 group-hover:invert'
+                      }`}
+                    />
+                  ) : (
+                    <IconComponent className="h-12 w-12" />
+                  )}
+                </div>
+                <span className={`text-sm font-medium text-center ${language === 'ar' ? 'font-arabic' : ''} ${
+                  isSelected ? 'text-primary' : ''
+                }`}>
+                  {categoryName}
+                </span>
               </Label>
             </div>
           );
         })}
       </RadioGroup>
-      
-      {formData.category && (
-        <div className="mt-6 p-4 bg-luxury-ivory/50 rounded-lg">
-          <p className={`text-sm text-luxury-black ${
-            language === 'ar' ? 'font-arabic' : ''
-          }`}>
-            <span className="font-medium">{t('sell.category.selected')}:</span> {t(`category.${formData.category}`)}
-          </p>
-        </div>
-      )}
     </div>
   );
 };

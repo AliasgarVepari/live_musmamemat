@@ -11,6 +11,8 @@ class UserSubscription extends Model
         'subscription_plan_id',
         'status',
         'is_active',
+        'usable_ad_for_this_month',
+        'last_allowance_reset',
         'starts_at',
         'expires_at',
         'cancelled_at',
@@ -28,6 +30,7 @@ class UserSubscription extends Model
             'expires_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'revoked_at' => 'datetime',
+            'last_allowance_reset' => 'datetime',
             'is_active' => 'boolean',
             'amount_paid' => 'decimal:2',
         ];
@@ -58,5 +61,43 @@ class UserSubscription extends Model
     public function scopeExpired($query)
     {
         return $query->where('expires_at', '<', now());
+    }
+
+    // Helper methods for ad allowance management
+    public function canCreateAd(): bool
+    {
+        return $this->is_active && 
+               $this->expires_at > now() && 
+               $this->usable_ad_for_this_month > 0;
+    }
+
+    public function deductAdAllowance(): bool
+    {
+        if (!$this->canCreateAd()) {
+            return false;
+        }
+
+        $this->decrement('usable_ad_for_this_month');
+        return true;
+    }
+
+    public function resetMonthlyAllowance(): void
+    {
+        if ($this->subscriptionPlan) {
+            $this->update([
+                'usable_ad_for_this_month' => $this->subscriptionPlan->ad_limit ?? 0,
+                'last_allowance_reset' => now(),
+            ]);
+        }
+    }
+
+    public function needsMonthlyReset(): bool
+    {
+        if (!$this->last_allowance_reset) {
+            return true;
+        }
+
+        return $this->last_allowance_reset->month !== now()->month || 
+               $this->last_allowance_reset->year !== now()->year;
     }
 }

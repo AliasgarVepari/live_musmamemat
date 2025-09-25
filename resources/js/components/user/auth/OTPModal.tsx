@@ -18,7 +18,7 @@ interface OTPModalProps {
 
 export const OTPModal = ({ isOpen, onClose, onSuccess, onBack, phoneNumber }: OTPModalProps) => {
   const { language, t } = useLanguage();
-  const { verifyOTP } = useAuth();
+  const { verifyOTP, pendingUser } = useAuth();
   const { toast } = useToast();
   
   const [otp, setOtp] = useState("");
@@ -62,14 +62,33 @@ export const OTPModal = ({ isOpen, onClose, onSuccess, onBack, phoneNumber }: OT
       return;
     }
 
+    if (!pendingUser) {
+      toast({
+        title: t('auth.error'),
+        description: 'No pending verification found',
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await verifyOTP(otp);
+      // Extract phone number from pendingUser (remove +965 prefix)
+      const phone = pendingUser.phoneE164.replace('+965', '');
+      await verifyOTP(phone, otp);
+      
+      // Show success toast
+      toast({
+        title: t('auth.success'),
+        description: t('auth.registrationComplete'),
+        variant: "default",
+      });
+      
       onSuccess();
     } catch (error) {
       toast({
         title: t('auth.error'),
-        description: t('auth.verificationFailed'),
+        description: error instanceof Error ? error.message : t('auth.verificationFailed'),
         variant: "destructive",
       });
     } finally {
@@ -140,7 +159,7 @@ export const OTPModal = ({ isOpen, onClose, onSuccess, onBack, phoneNumber }: OT
 
             <Button
               type="submit"
-              className="w-full bg-luxury-black text-luxury-white hover:bg-luxury-gold hover:text-luxury-black"
+              className="w-full bg-brand-red-600 text-white hover:bg-brand-red-700 hover:shadow-glow transition-all duration-300 font-semibold py-3"
               disabled={isLoading || otp.length !== 6}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

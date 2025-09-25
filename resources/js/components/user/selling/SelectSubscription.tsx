@@ -1,8 +1,9 @@
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Card } from "@/components/user/ui/card";
+import { Card, CardContent } from "@/components/user/ui/card";
 import { Button } from "@/components/user/ui/button";
 import { Badge } from "@/components/user/ui/badge";
-import { SellFormData } from "./SellWizard";
+import { SellFormData } from "@/pages/user/SellWizard";
 import { Check, Star, Crown, Zap } from "lucide-react";
 
 interface SelectSubscriptionProps {
@@ -10,162 +11,223 @@ interface SelectSubscriptionProps {
   updateFormData: (data: Partial<SellFormData>) => void;
 }
 
-const plans = [
-  {
-    id: 'free',
-    name: 'sell.subscription.free.name',
-    price: 'sell.subscription.free.price',
-    icon: Zap,
-    popular: false,
-    imageLimit: 5,
-    features: [
-      'sell.subscription.free.feature1',
-      'sell.subscription.free.feature2',
-      'sell.subscription.free.feature3',
-    ]
-  },
-  {
-    id: 'silver',
-    name: 'sell.subscription.silver.name',
-    price: 'sell.subscription.silver.price',
-    icon: Star,
-    popular: true,
-    imageLimit: 10,
-    features: [
-      'sell.subscription.silver.feature1',
-      'sell.subscription.silver.feature2',
-      'sell.subscription.silver.feature3',
-      'sell.subscription.silver.feature4',
-    ]
-  },
-  {
-    id: 'gold',
-    name: 'sell.subscription.gold.name',
-    price: 'sell.subscription.gold.price',
-    icon: Crown,
-    popular: false,
-    imageLimit: 20,
-    features: [
-      'sell.subscription.gold.feature1',
-      'sell.subscription.gold.feature2',
-      'sell.subscription.gold.feature3',
-      'sell.subscription.gold.feature4',
-      'sell.subscription.gold.feature5',
-    ]
-  }
-];
+interface SubscriptionPlan {
+  id: number;
+  name_en: string;
+  name_ar: string;
+  price: number;
+  months_count: number;
+  is_lifetime: boolean;
+  features_en?: string;
+  features_ar?: string;
+}
 
 export const SelectSubscription = ({ formData, updateFormData }: SelectSubscriptionProps) => {
   const { language, t } = useLanguage();
-  const currentImages = formData.images?.length || 0;
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const checkImageLimit = (plan: typeof plans[0]) => {
-    if (currentImages > plan.imageLimit) {
-      return {
-        exceeded: true,
-        message: t('sell.subscription.image-limit-exceeded')
-      };
-    }
-    return { exceeded: false };
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const response = await fetch('/api/user/subscription-plans');
+        const data = await response.json();
+        setPlans(data.data || data);
+      } catch (error) {
+        console.error('Error loading subscription plans:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPlans();
+  }, []);
+
+  const handlePlanSelect = (planId: number) => {
+    updateFormData({ subscription_plan_id: planId });
   };
 
+  const getPlanName = (plan: SubscriptionPlan) => {
+    return language === 'ar' ? plan.name_ar : plan.name_en;
+  };
+
+  const getPlanFeatures = (plan: SubscriptionPlan) => {
+    // Default features based on plan type
+    const defaultFeatures = {
+      free: {
+        en: [
+          'Up to 5 images',
+          'Basic listing',
+          '7 days visibility',
+          'Standard support'
+        ],
+        ar: [
+          'حتى 5 صور',
+          'إعلان أساسي',
+          'ظهور لمدة 7 أيام',
+          'دعم قياسي'
+        ]
+      },
+      silver: {
+        en: [
+          'Up to 10 images',
+          'Featured listing',
+          '14 days visibility',
+          'Priority support',
+          'Analytics dashboard'
+        ],
+        ar: [
+          'حتى 10 صور',
+          'إعلان مميز',
+          'ظهور لمدة 14 يوم',
+          'دعم أولوي',
+          'لوحة تحليلات'
+        ]
+      },
+      gold: {
+        en: [
+          'Unlimited images',
+          'Premium listing',
+          '30 days visibility',
+          '24/7 support',
+          'Advanced analytics',
+          'Featured placement'
+        ],
+        ar: [
+          'صور غير محدودة',
+          'إعلان مميز',
+          'ظهور لمدة 30 يوم',
+          'دعم 24/7',
+          'تحليلات متقدمة',
+          'موضع مميز'
+        ]
+      }
+    };
+
+    const planName = getPlanName(plan).toLowerCase();
+    let planType = 'free';
+    
+    if (planName.includes('silver') || planName.includes('فضي')) planType = 'silver';
+    if (planName.includes('gold') || planName.includes('ذهبي')) planType = 'gold';
+    
+    return defaultFeatures[planType as keyof typeof defaultFeatures][language as 'en' | 'ar'];
+  };
+
+  const getPlanIcon = (plan: SubscriptionPlan) => {
+    const name = getPlanName(plan).toLowerCase();
+    if (name.includes('free') || name.includes('مجاني')) return Zap;
+    if (name.includes('silver') || name.includes('فضي')) return Star;
+    if (name.includes('gold') || name.includes('ذهبي')) return Crown;
+    return Star;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className={language === 'ar' ? 'font-arabic' : ''}>
+            {language === 'ar' ? 'جاري تحميل خطط الاشتراك...' : 'Loading subscription plans...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`space-y-6 ${language === 'ar' ? 'rtl' : 'ltr'}`}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className={`flex flex-col h-full ${language === 'ar' ? 'rtl' : 'ltr'}`}>
+      <div className="flex-1 space-y-6">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {plans.map((plan) => {
-          const Icon = plan.icon;
-          const isSelected = formData.subscription === plan.id;
-          const imageCheck = checkImageLimit(plan);
+          const IconComponent = getPlanIcon(plan);
+          const isSelected = formData.subscription_plan_id === plan.id;
+          const features = getPlanFeatures(plan);
           
           return (
-            <Card 
+            <Card
               key={plan.id}
-              className={`relative p-6 transition-all duration-200 cursor-pointer h-full flex flex-col ${
+              className={`flex flex-col h-full cursor-pointer transition-all hover:shadow-lg ${
                 isSelected 
-                  ? 'ring-2 ring-luxury-gold bg-luxury-ivory' 
-                  : 'hover:shadow-lg hover:bg-luxury-ivory/50'
-              } ${imageCheck.exceeded ? 'opacity-60' : ''}`}
-              onClick={() => !imageCheck.exceeded && updateFormData({ subscription: plan.id as any })}
+                  ? 'ring-2 ring-primary border-primary' 
+                  : 'hover:border-primary/50'
+              }`}
+              onClick={() => handlePlanSelect(plan.id)}
             >
-              {plan.popular && (
-                <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-luxury-gold text-luxury-black">
-                  <span className={language === 'ar' ? 'font-arabic' : ''}>{t('sell.subscription.popular')}</span>
-                </Badge>
-              )}
-              
-              <div className="text-center flex flex-col h-full">
-                <Icon className="h-12 w-12 mx-auto mb-4 text-luxury-black stroke-[1.5]" />
-                
-                <h3 className={`text-xl font-bold text-luxury-black mb-2 ${
-                  language === 'ar' ? 'font-arabic' : 'font-serif'
-                }`}>
-                  {t(plan.name)}
-                </h3>
-                
-                <div className={`text-2xl font-bold text-luxury-gold mb-4 ${
-                  language === 'ar' ? 'font-arabic' : ''
-                }`}>
-                  {t(plan.price)}
-                </div>
-                
-                <div className={`text-sm text-muted-foreground mb-4 ${
-                  language === 'ar' ? 'font-arabic' : ''
-                }`}>
-                  {t('sell.subscription.image-limit')}: {plan.imageLimit}
-                </div>
-                
-                <ul className="space-y-2 mb-6 flex-grow">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-luxury-gold flex-shrink-0" />
-                      <span className={`text-sm text-luxury-black ${
-                        language === 'ar' ? 'font-arabic' : ''
-                      }`}>
-                        {t(feature)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                
-                <div className="mt-auto">
-                  {imageCheck.exceeded && (
-                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-4">
-                      <p className={`text-xs text-destructive ${
-                        language === 'ar' ? 'font-arabic' : ''
-                      }`}>
-                        {imageCheck.message}
-                      </p>
-                    </div>
-                  )}
+              <CardContent className="p-6 flex flex-col h-full">
+                <div className="text-center mb-4">
+                  {/* <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-3 ${
+                    isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    <IconComponent className="h-6 w-6" />
+                  </div> */}
                   
-                  <Button 
-                    className={`w-full ${
-                      isSelected 
-                        ? 'bg-luxury-gold text-luxury-black' 
-                        : 'bg-luxury-black text-luxury-white hover:bg-luxury-gold hover:text-luxury-black'
-                    }`}
-                    disabled={imageCheck.exceeded}
-                  >
-                    <span className={language === 'ar' ? 'font-arabic' : ''}>
-                      {isSelected ? t('sell.subscription.selected') : t('sell.subscription.select')}
+                  <h4 className={`text-lg font-semibold mb-1 ${language === 'ar' ? 'font-arabic' : ''}`}>
+                    {getPlanName(plan)}
+                  </h4>
+                  
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className={`text-2xl font-bold ${language === 'ar' ? 'font-arabic' : ''}`}>
+                      {plan.price === 0 ? (language === 'ar' ? 'مجاني' : 'Free') : `KD ${plan.price}`}
                     </span>
-                  </Button>
+                    {plan.price > 0 && (
+                      <span className={`text-sm text-muted-foreground ${language === 'ar' ? 'font-arabic' : ''}`}>
+                        {plan.is_lifetime 
+                          ? (language === 'ar' ? 'مدى الحياة' : 'Lifetime')
+                          : `/${plan.months_count} ${language === 'ar' ? 'شهر' : 'months'}`
+                        }
+                      </span>
+                    )}
+                  </div>
+
+                  {plan.price > 0 && (
+                    <Badge variant="secondary" className="mb-4">
+                      {language === 'ar' ? 'مدفوع' : 'Paid'}
+                    </Badge>
+                  )}
                 </div>
-              </div>
+
+                {features.length > 0 && (
+                  <ul className="space-y-2 flex-1">
+                    {features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span className={`text-sm ${language === 'ar' ? 'font-arabic' : ''}`}>
+                          {feature.trim()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <Button
+                  className={`w-full mt-4 ${
+                    isSelected 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'
+                  }`}
+                  variant={isSelected ? 'default' : 'outline'}
+                >
+                  {isSelected 
+                    ? (language === 'ar' ? 'محدد' : 'Selected')
+                    : (language === 'ar' ? 'اختر هذه الخطة' : 'Select This Plan')
+                  }
+                </Button>
+              </CardContent>
             </Card>
           );
         })}
+        </div>
       </div>
-      
-      {currentImages > 0 && (
-        <Card className="p-4 bg-blue-50 border border-blue-200">
-          <p className={`text-sm text-blue-700 ${
-            language === 'ar' ? 'font-arabic' : ''
-          }`}>
-            {t('sell.subscription.current-images')}: {currentImages}
-          </p>
-        </Card>
-      )}
+
+      <div className="mt-8 text-center">
+        <p className={`text-sm text-muted-foreground ${language === 'ar' ? 'font-arabic' : ''}`}>
+          {language === 'ar' 
+            ? 'يمكنك تغيير خطة الاشتراك في أي وقت من إعدادات الحساب'
+            : 'You can change your subscription plan anytime from account settings'
+          }
+        </p>
+      </div>
     </div>
   );
 };

@@ -8,7 +8,7 @@ import { useErrorHandler } from '@/hooks/admin/use-error-handler';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link as InertiaLink, router } from '@inertiajs/react';
-import { Eye, Filter, Search, Shield, ShieldCheck, ShieldX, Trash2, User, UserCheck, UserX } from 'lucide-react';
+import { Eye, Filter, Search, Shield, ShieldCheck, ShieldX, Trash2, User, UserCheck, UserX, Users } from 'lucide-react';
 import { useEffect } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -83,6 +83,7 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
         setPerPage,
         setSearch,
         updateFilter,
+        refetch: refetchListing,
     } = useCachedPagination<typeof users>({
         endpoint: '/admin/users',
         initialPage: users.current_page,
@@ -113,20 +114,15 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
         );
     }
 
-    // Debounced search effect
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            setSearch(paginationState.search);
-        }, 300);
-
-        return () => clearTimeout(timeoutId);
-    }, [paginationState.search, setSearch]);
 
     const handleToggleStatus = (userId: number) => {
         router.patch(
             `/admin/users/${userId}/toggle`,
             {},
             {
+                onSuccess: () => {
+                    refetchListing();
+                },
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
@@ -141,6 +137,9 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
         if (reason && reason.trim()) {
             router.delete(`/admin/users/${userId}`, {
                 data: { deletion_reason: reason },
+                onSuccess: () => {
+                    refetchListing();
+                },
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');

@@ -170,10 +170,12 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
         setPerPage,
         setSearch,
         updateFilter,
+        refetch: refetchListing,
     } = useCachedPagination<typeof ads>({
         endpoint: '/admin/ads',
+        dataKey: 'ads',
         initialPage: ads.current_page,
-        initialPerPage: filters.per_page || '20',
+        initialPerPage: filters.per_page || '5',
         initialSearch: filters.search || '',
         initialFilters: {
             status: filters.status || 'all',
@@ -207,14 +209,6 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
         );
     }
 
-    // Debounced search effect
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            setSearch(paginationState.search);
-        }, 300);
-
-        return () => clearTimeout(timeoutId);
-    }, [paginationState.search, setSearch]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -263,6 +257,9 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                 `/admin/ads/${adId}/toggle-status`,
                 {},
                 {
+                    onSuccess: () => {
+                        refetchListing();
+                    },
                     onError: (errors) => {
                         const errorMessages = Object.values(errors).flat();
                         const errorMessage = errorMessages.join(', ');
@@ -279,6 +276,9 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
             `/admin/ads/${adId}/approve`,
             {},
             {
+                onSuccess: () => {
+                    refetchListing();
+                },
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
@@ -306,6 +306,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                         setIsRejectDialogOpen(false);
                         setRejectingAd(null);
                         setRejectReason('');
+                        refetchListing();
                     },
                     onError: (errors) => {
                         const errorMessages = Object.values(errors).flat();
@@ -323,6 +324,9 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
             `/admin/ads/${adId}/mark-sold`,
             {},
             {
+                onSuccess: () => {
+                    refetchListing();
+                },
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
@@ -338,6 +342,9 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
             `/admin/ads/${adId}/mark-expired`,
             {},
             {
+                onSuccess: () => {
+                    refetchListing();
+                },
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
@@ -370,6 +377,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                         setIsDeleteDialogOpen(false);
                         setDeletingAd(null);
                         setDeleteReason('');
+                        refetchListing();
                     },
                     onError: (errors) => {
                         const errorMessages = Object.values(errors).flat();
@@ -405,6 +413,7 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
                         setIsInactiveDialogOpen(false);
                         setInactivatingAd(null);
                         setInactiveReason('');
+                        refetchListing();
                     },
                     onError: (errors) => {
                         const errorMessages = Object.values(errors).flat();

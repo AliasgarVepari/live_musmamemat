@@ -17,7 +17,7 @@ const Search = () => {
                 </div>
             </main>
             <Footer />
-            <BottomNavigation />
+            {/* <BottomNavigation /> */}
         </div>
     );
 };

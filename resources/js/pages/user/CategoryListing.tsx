@@ -16,7 +16,7 @@ const CategoryListing = () => {
                 </div>
             </main>
             <Footer />
-            <BottomNavigation />
+            {/* <BottomNavigation /> */}
         </div>
     );
 };

@@ -3,6 +3,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -12,9 +13,17 @@ class HomeController extends Controller
      */
     public function index()
     {
+        // Get the current authenticated user
+        $user = Auth::guard('web')->user();
+        
         // Since we're using React Query for caching, we don't need to pass data here
         // The components will fetch their own data using the API endpoints
-        return Inertia::render('user/Index');
+        return Inertia::render('user/Index', [
+            'auth' => [
+                'user' => $user,
+                'isAuthenticated' => $user !== null,
+            ]
+        ]);
     }
 
     /**

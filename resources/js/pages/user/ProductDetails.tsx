@@ -16,7 +16,7 @@ export const ProductDetails = () => {
                 </div>
             </main>
             <Footer />
-            <BottomNavigation />
+            {/* <BottomNavigation /> */}
         </div>
     );
 };

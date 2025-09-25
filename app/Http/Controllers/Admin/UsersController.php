@@ -7,23 +7,22 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\FuzzySearch;
 
 class UsersController extends Controller
 {
+    use FuzzySearch;
     public function index(Request $request)
     {
         $query = User::with(['governorate', 'subscription', 'subscription.plan'])
             ->withCount(['ads', 'adViews']);
 
-        // Search functionality
+        // Fuzzy search functionality
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('name_en', 'like', "%{$search}%")
-                    ->orWhere('name_ar', 'like', "%{$search}%");
-            });
+            $searchFields = ['email', 'phone', 'name_en', 'name_ar'];
+            $relationFields = [];
+            
+            $this->applyFuzzySearch($query, $request->search, $searchFields, $relationFields);
         }
 
         // Filter by subscription status
@@ -67,11 +66,18 @@ class UsersController extends Controller
         // Get governorates for filter dropdown
         $governorates = \App\Models\Governorate::orderBy('name_en')->get();
 
-        return Inertia::render('admin/users/index', [
+        $data = [
             'users'        => $users,
             'governorates' => $governorates,
             'filters'      => $request->only(['search', 'subscription_status', 'status', 'governorate_id', 'per_page']),
-        ]);
+        ];
+
+        // Return JSON for AJAX requests (React Query)
+        if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+            return response()->json($data);
+        }
+
+        return Inertia::render('admin/users/index', $data);
     }
 
     public function show(User $user)

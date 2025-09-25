@@ -113,6 +113,15 @@ class ProductController extends Controller
 
         $products = $query->paginate($perPage)->withQueryString();
 
+        // Transform the response data to use camelCase for primaryImage
+        $responseData = $products->toArray();
+        if (isset($responseData['data'])) {
+            foreach ($responseData['data'] as &$product) {
+                $product['primaryImage'] = $product['primary_image'] ?? null;
+                unset($product['primary_image']);
+            }
+        }
+
         // Get filter options
         $categories = Category::where('status', 'active')
             ->orderBy('sort_order')
@@ -131,8 +140,10 @@ class ProductController extends Controller
             ->orderBy('name_en')
             ->get(['id', 'name_en', 'name_ar']);
 
+            // dd($products);
+
         return Inertia::render('user/ProductListing', [
-            'products'     => $products,
+            'products'     => $responseData,
             'categories'   => $categories,
             'governorates' => $governorates,
             'conditions'   => $conditions,
@@ -147,7 +158,7 @@ class ProductController extends Controller
     /**
      * Display product detail page
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $product = Ad::where('id', $id)
             ->where('status', 'active')
@@ -165,6 +176,14 @@ class ProductController extends Controller
         // Increment views count
         $product->increment('views_count');
 
+        // Get selected category from query parameter
+        $selectedCategory = null;
+        if ($request->has('selected_category')) {
+            $selectedCategory = \App\Models\Category::where('slug', $request->get('selected_category'))
+                ->select('id', 'name_en', 'name_ar', 'slug')
+                ->first();
+        }
+
         // Get related products
         $relatedProducts = Ad::where('status', 'active')
             ->where('is_approved', true)
@@ -176,6 +195,7 @@ class ProductController extends Controller
 
         return Inertia::render('user/ProductDetail', [
             'product'         => $product,
+            'selectedCategory' => $selectedCategory,
             'relatedProducts' => $relatedProducts,
         ]);
     }

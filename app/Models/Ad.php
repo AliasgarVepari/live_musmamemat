@@ -25,6 +25,7 @@ class Ad extends Model
         'condition_id',
         'governorate_id',
         'status',
+        'current_step',
         'delete_reason',
         'is_featured',
         'is_negotiable',
@@ -184,5 +185,24 @@ class Ad extends Model
     public function isRejected(): bool
     {
         return $this->is_approved === false;
+    }
+
+    /**
+     * Generate a unique slug from the English title
+     */
+    public static function generateSlug($titleEn, $id = null)
+    {
+        $slug = \Str::slug($titleEn);
+        $originalSlug = $slug;
+        $counter = 1;
+
+        while (static::where('slug', $slug)->when($id, function ($query) use ($id) {
+            return $query->where('id', '!=', $id);
+        })->exists()) {
+            $slug = $originalSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return $slug;
     }
 }

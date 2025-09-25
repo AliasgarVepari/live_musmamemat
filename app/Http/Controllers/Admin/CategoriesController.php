@@ -8,9 +8,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use App\FuzzySearch;
 
 class CategoriesController extends Controller
 {
+    use FuzzySearch;
     protected $imageUploadService;
 
     public function __construct(ImageUploadService $imageUploadService)
@@ -25,14 +27,12 @@ class CategoriesController extends Controller
     {
         $query = Category::orderBy('sort_order')->orderBy('name_en');
 
-        // Apply filters
+        // Apply filters with fuzzy search
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name_en', 'like', "%{$search}%")
-                    ->orWhere('name_ar', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%");
-            });
+            $searchFields = ['name_en', 'name_ar', 'slug'];
+            $relationFields = [];
+            
+            $this->applyFuzzySearch($query, $request->search, $searchFields, $relationFields);
         }
 
         if ($request->filled('status') && in_array($request->status, ['active', 'inactive'])) {

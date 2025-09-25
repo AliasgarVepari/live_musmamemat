@@ -13,7 +13,7 @@ const SellOverview = () => {
                 </div>
             </main>
             <Footer />
-            <BottomNavigation />
+            {/* <BottomNavigation /> */}
         </div>
     );
 };

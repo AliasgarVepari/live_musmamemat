@@ -8,8 +8,12 @@ import { Card, CardContent } from '@/components/user/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/user/ui/dialog';
 import { Textarea } from '@/components/user/ui/textarea';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFavorites } from '@/hooks/user/use-favorites';
+import { AuthModal } from '@/components/user/auth/AuthModal';
 import UserLayout from '@/layouts/user/user-layout';
 import { home } from '@/routes/user';
+import * as products from '@/routes/user/products';
 import { Head, router } from '@inertiajs/react';
 import { Calendar, CheckCircle, ChevronLeft, ChevronRight, Flag, Heart, MapPin, MessageCircle, Share2, Shield, Star } from 'lucide-react';
 import { useState } from 'react';
@@ -21,6 +25,8 @@ interface ProductDetailProps {
         title_ar: string;
         description_en: string;
         description_ar: string;
+        product_details_en?: string;
+        product_details_ar?: string;
         price: number;
         original_price?: number;
         brand?: string;
@@ -33,8 +39,10 @@ interface ProductDetailProps {
             name_ar: string;
         };
         category?: {
+            id: number;
             name_en: string;
             name_ar: string;
+            slug: string;
         };
         priceType?: {
             name_en: string;
@@ -53,32 +61,67 @@ interface ProductDetailProps {
             name_en: string;
             name_ar: string;
             profile_picture_url?: string;
+            phone?: string;
+            email?: string;
             created_at: string;
             rating?: number;
             reviews_count?: number;
         } | null;
     };
+    selectedCategory?: {
+        id: number;
+        name_en: string;
+        name_ar: string;
+        slug: string;
+    } | null;
 }
 
-const ProductDetail = ({ product }: ProductDetailProps) => {
+const ProductDetail = ({ product, selectedCategory }: ProductDetailProps) => {
     console.log(product);
 
     const { language } = useLanguage();
+    const { isAuthenticated } = useAuth();
+    const { isFavorited, toggleFavorite, loading: favoriteLoading } = useFavorites();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [isWishlisted, setIsWishlisted] = useState(false);
     const [showReportModal, setShowReportModal] = useState(false);
     const [reportReason, setReportReason] = useState('');
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     const productTitle = language === 'ar' ? product.title_ar : product.title_en;
     const productDescription = language === 'ar' ? product.description_ar : product.description_en;
     const productImages = product.images || [];
     const primaryImage = productImages.find((img) => img.is_primary) || productImages[0];
 
-    const handleWhatsAppContact = () => {
+    const handleWhatsAppContact = async () => {
+        if (!product.user?.phone) {
+            alert(language === 'ar' ? 'رقم الهاتف غير متوفر' : 'Phone number not available');
+            return;
+        }
+
+        try {
+            // Increment contact count
+            await fetch(`/api/user/products/${product.id}/contact`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+            });
+        } catch (error) {
+            console.error('Failed to increment contact count:', error);
+            // Continue with WhatsApp opening even if contact count fails
+        }
+
         const message = encodeURIComponent(
             `Hi! I'm interested in your ${productTitle} listed for ${product.price} ${product.priceType?.name_en || 'KD'}. ${window.location.href}`,
         );
-        window.open(`https://wa.me/96512345678?text=${message}`, '_blank');
+        
+        // Clean the phone number (remove any non-digit characters except +)
+        const cleanPhone = product.user.phone.replace(/[^\d+]/g, '');
+        // Ensure it starts with +965 for Kuwait
+        const whatsappNumber = cleanPhone.startsWith('+') ? cleanPhone : `+965${cleanPhone}`;
+        
+        window.open(`https://wa.me/${whatsappNumber.replace('+', '')}?text=${message}`, '_blank');
     };
 
     const handleShare = async () => {
@@ -94,6 +137,19 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
             }
         } else {
             navigator.clipboard.writeText(window.location.href);
+        }
+    };
+
+    const handleFavoriteToggle = async () => {
+        if (!isAuthenticated) {
+            setShowAuthModal(true);
+            return;
+        }
+
+        try {
+            await toggleFavorite(product.id);
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
         }
     };
 
@@ -121,8 +177,14 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                                 {language === 'ar' ? 'الرئيسية' : 'Home'}
                             </span>
                             <ChevronRight className="h-4 w-4" />
-                            <span onClick={() => router.visit(home())} className="hover:text-luxury-black cursor-pointer transition-colors">
-                                {language === 'ar' ? product.category?.name_ar : product.category?.name_en}
+                            <span 
+                                onClick={() => router.visit(products.index.get({ query: selectedCategory ? { category: selectedCategory.slug } : {} }))} 
+                                className="hover:text-luxury-black cursor-pointer transition-colors"
+                            >
+                                {selectedCategory 
+                                    ? (language === 'ar' ? selectedCategory.name_ar : selectedCategory.name_en)
+                                    : (language === 'ar' ? 'جميع الفئات' : 'All Categories')
+                                }
                             </span>
                             <ChevronRight className="h-4 w-4" />
                             <span className="text-luxury-black truncate font-medium">{productTitle}</span>
@@ -202,10 +264,11 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                                             <Button
                                                 variant="secondary"
                                                 size="icon"
-                                                onClick={() => setIsWishlisted(!isWishlisted)}
-                                                className={isWishlisted ? 'text-brand-red-600 border-brand-red-600' : ''}
+                                                onClick={handleFavoriteToggle}
+                                                disabled={favoriteLoading}
+                                                className={isFavorited(product.id) ? 'text-brand-red-600 border-brand-red-600' : ''}
                                             >
-                                                <Heart className={`h-4 w-4 ${isWishlisted ? 'fill-current' : ''}`} />
+                                                <Heart className={`h-4 w-4 ${isFavorited(product.id) ? 'fill-current' : ''}`} />
                                             </Button>
 
                                             <Button variant="secondary" size="icon" onClick={handleShare}>
@@ -266,7 +329,8 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                                 <div className="space-y-3">
                                     <Button
                                         onClick={handleWhatsAppContact}
-                                        className="bg-luxury-black text-luxury-white hover:bg-luxury-gold hover:text-luxury-black w-full py-3 transition-all duration-300"
+                                        disabled={!product.user?.phone}
+                                        className="bg-luxury-black text-luxury-white hover:bg-luxury-gold hover:text-luxury-black w-full py-3 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                         size="lg"
                                     >
                                         <MessageCircle className="mr-2 h-5 w-5" />
@@ -274,7 +338,10 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                                     </Button>
 
                                     <p className="text-muted-foreground text-center text-xs">
-                                        {language === 'ar' ? 'سيتم فتح واتساب مع رسالة جاهزة' : 'Opens WhatsApp with pre-filled message'}
+                                        {product.user?.phone 
+                                            ? (language === 'ar' ? 'سيتم فتح واتساب مع رسالة جاهزة' : 'Opens WhatsApp with pre-filled message')
+                                            : (language === 'ar' ? 'رقم الهاتف غير متوفر' : 'Phone number not available')
+                                        }
                                     </p>
                                 </div>
 
@@ -285,33 +352,31 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                                 </div>
 
                                 {/* Product Details */}
-                                <div>
-                                    <h3 className="text-luxury-black mb-3 text-lg font-semibold">
-                                        {language === 'ar' ? 'تفاصيل المنتج' : 'Product Details'}
-                                    </h3>
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                            <span className="text-sm">{language === 'ar' ? '100% أصلي' : '100% Authentic'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                            <span className="text-sm">
-                                                {language === 'ar' ? 'حقيبة الغبار الأصلية مرفقة' : 'Original dust bag included'}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                            <span className="text-sm">
-                                                {language === 'ar' ? 'تم التنظيف المهني' : 'Professional cleaning completed'}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                            <span className="text-sm">{language === 'ar' ? 'تآكل طفيف في الزوايا' : 'Minor wear on corners'}</span>
+                                {(product.product_details_en || product.product_details_ar) && (
+                                    <div>
+                                        <h3 className="text-luxury-black mb-3 text-lg font-semibold">
+                                            {language === 'ar' ? 'تفاصيل المنتج' : 'Product Details'}
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {(() => {
+                                                const productDetails = language === 'ar' ? product.product_details_ar : product.product_details_en;
+                                                if (!productDetails) return null;
+                                                
+                                                // Split by line breaks and filter out empty lines
+                                                const details = productDetails
+                                                    .split(/\r?\n/)
+                                                    .filter(detail => detail.trim() !== '');
+                                                
+                                                return details.map((detail, index) => (
+                                                    <div key={index} className="flex items-center gap-2">
+                                                        <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                                        <span className="text-sm">{detail.trim()}</span>
+                                                    </div>
+                                                ));
+                                            })()}
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
                                 {/* Seller Information */}
                                 <Card>
@@ -362,6 +427,11 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                                                             ? `${language === 'ar' ? 'عضو منذ' : 'Member since'} ${new Date(product.user.created_at).getFullYear()}`
                                                             : 'Unknown'}
                                                     </span>
+                                                    {product.user?.phone && (
+                                                        <span>
+                                                            {language === 'ar' ? 'الهاتف:' : 'Phone:'} {product.user.phone}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -369,7 +439,7 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                                 </Card>
 
                                 {/* Report Listing */}
-                                <div className="border-t pt-4">
+                                {/* <div className="border-t pt-4">
                                     <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
                                         <DialogTrigger asChild>
                                             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
@@ -400,15 +470,22 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                                             </div>
                                         </DialogContent>
                                     </Dialog>
-                                </div>
+                                </div> */}
                             </div>
                         </div>
                     </div>
                 </main>
 
                 <Footer />
-                <BottomNavigation />
+                {/* <BottomNavigation /> */}
             </div>
+
+            {/* Auth Modal */}
+            <AuthModal 
+                isOpen={showAuthModal} 
+                onClose={() => setShowAuthModal(false)}
+                onSuccess={() => setShowAuthModal(false)}
+            />
         </UserLayout>
     );
 };

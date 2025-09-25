@@ -10,9 +10,11 @@ use App\Models\Governorate;
 use App\Models\PriceType;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\FuzzySearch;
 
 class AdController extends Controller
 {
+    use FuzzySearch;
     public function index(Request $request)
     {
         $query = Ad::with([
@@ -24,20 +26,14 @@ class AdController extends Controller
             'primaryImage:id,ad_id,url,is_primary'
         ]);
 
-        // Search functionality
+        // Fuzzy search functionality
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('title_en', 'like', "%{$search}%")
-                  ->orWhere('title_ar', 'like', "%{$search}%")
-                  ->orWhere('description_en', 'like', "%{$search}%")
-                  ->orWhere('description_ar', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('name_en', 'like', "%{$search}%")
-                               ->orWhere('name_ar', 'like', "%{$search}%")
-                               ->orWhere('email', 'like', "%{$search}%");
-                  });
-            });
+            $searchFields = ['title_en', 'title_ar', 'description_en', 'description_ar'];
+            $relationFields = [
+                // 'user' => ['name_en', 'name_ar', 'email']
+            ];
+            
+            $this->applyFuzzySearch($query, $request->search, $searchFields, $relationFields);
         }
 
         // Filter by status
@@ -106,7 +102,7 @@ class AdController extends Controller
         $priceTypes = PriceType::select('id', 'name_en', 'name_ar')->orderBy('name_en')->get();
         $conditions = Condition::select('id', 'name_en', 'name_ar')->orderBy('name_en')->get();
 
-        return Inertia::render('admin/ads/index', [
+        $data = [
             'ads' => $ads,
             'categories' => $categories,
             'governorates' => $governorates,
@@ -117,7 +113,15 @@ class AdController extends Controller
                 'price_type_id', 'condition_id', 'is_featured', 
                 'is_approved', 'is_negotiable', 'min_price', 'max_price', 'per_page'
             ]),
-        ]);
+        ];
+
+        // Return JSON for API requests (not Inertia)
+        // dd($request->headers->all());
+        if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+            return response()->json(['ads' => $ads]);
+        }
+
+        return Inertia::render('admin/ads/index', $data);
     }
 
     public function show(Ad $ad)
@@ -215,10 +219,17 @@ class AdController extends Controller
             ->with('success', 'Ad deleted successfully.');
     }
 
-    public function toggleStatus(Ad $ad)
+    public function toggleStatus(Request $request, Ad $ad)
     {
         if (!$ad->canBeActivated() && !$ad->canBeDeactivated()) {
-            return back()->with('error', 'This ad cannot be activated/deactivated in its current state.');
+            $message = 'This ad cannot be activated/deactivated in its current state.';
+            
+            // Check if it's an API request (not Inertia)
+            if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+            
+            return back()->with('error', $message);
         }
 
         // Handle different status transitions
@@ -235,16 +246,35 @@ class AdController extends Controller
             $ad->update(['status' => 'inactive']);
             $message = 'Ad deactivated successfully.';
         } else {
-            return back()->with('error', 'Invalid status transition.');
+            $message = 'Invalid status transition.';
+            
+            // Check if it's an API request (not Inertia)
+            if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+            
+            return back()->with('error', $message);
+        }
+
+        // Check if it's an API request (not Inertia)
+        if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+            return response()->json(['success' => true, 'message' => $message]);
         }
 
         return back()->with('success', $message);
     }
 
-    public function approve(Ad $ad)
+    public function approve(Request $request, Ad $ad)
     {
         if (!$ad->canBeApproved()) {
-            return back()->with('error', 'This ad cannot be approved in its current state.');
+            $message = 'This ad cannot be approved in its current state.';
+            
+            // Check if it's an API request (not Inertia)
+            if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+            
+            return back()->with('error', $message);
         }
 
         $ad->update([
@@ -252,13 +282,27 @@ class AdController extends Controller
             'reject_reason' => null // Clear any previous rejection reason
         ]);
 
-        return back()->with('success', 'Ad approved successfully.');
+        $message = 'Ad approved successfully.';
+        
+        // Check if it's an API request (not Inertia)
+        if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
     }
 
     public function reject(Request $request, Ad $ad)
     {
         if (!$ad->canBeRejected()) {
-            return back()->with('error', 'This ad cannot be rejected in its current state.');
+            $message = 'This ad cannot be rejected in its current state.';
+            
+            // Check if it's an API request (not Inertia)
+            if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+            
+            return back()->with('error', $message);
         }
 
         $request->validate([
@@ -270,35 +314,77 @@ class AdController extends Controller
             'reject_reason' => $request->reject_reason
         ]);
 
-        return back()->with('success', 'Ad rejected successfully.');
+        $message = 'Ad rejected successfully.';
+        
+        // Check if it's an API request (not Inertia)
+        if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
     }
 
-    public function markAsSold(Ad $ad)
+    public function markAsSold(Request $request, Ad $ad)
     {
         if (!$ad->canBeMarkedAsSold()) {
-            return back()->with('error', 'This ad cannot be marked as sold in its current state.');
+            $message = 'This ad cannot be marked as sold in its current state.';
+            
+            // Check if it's an API request (not Inertia)
+            if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+            
+            return back()->with('error', $message);
         }
 
         $ad->update(['status' => 'sold']);
 
-        return back()->with('success', 'Ad marked as sold successfully.');
+        $message = 'Ad marked as sold successfully.';
+        
+        // Check if it's an API request (not Inertia)
+        if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
     }
 
-    public function markAsExpired(Ad $ad)
+    public function markAsExpired(Request $request, Ad $ad)
     {
         if (!$ad->canBeMarkedAsExpired()) {
-            return back()->with('error', 'This ad cannot be marked as expired in its current state.');
+            $message = 'This ad cannot be marked as expired in its current state.';
+            
+            // Check if it's an API request (not Inertia)
+            if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+            
+            return back()->with('error', $message);
         }
 
         $ad->update(['status' => 'expired']);
 
-        return back()->with('success', 'Ad marked as expired successfully.');
+        $message = 'Ad marked as expired successfully.';
+        
+        // Check if it's an API request (not Inertia)
+        if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
     }
 
     public function markAsInactive(Request $request, Ad $ad)
     {
         if (!$ad->canBeMarkedAsInactive()) {
-            return back()->with('error', 'This ad cannot be marked as inactive in its current state.');
+            $message = 'This ad cannot be marked as inactive in its current state.';
+            
+            // Check if it's an API request (not Inertia)
+            if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+            
+            return back()->with('error', $message);
         }
 
         $request->validate([
@@ -310,7 +396,14 @@ class AdController extends Controller
             'delete_reason' => $request->inactive_reason
         ]);
 
-        return back()->with('success', 'Ad marked as inactive successfully.');
+        $message = 'Ad marked as inactive successfully.';
+        
+        // Check if it's an API request (not Inertia)
+        if (!$request->header('X-Inertia') && $request->header('J-Json')) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
     }
 
     public function delete(Request $request, Ad $ad)

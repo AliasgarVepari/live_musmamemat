@@ -3,8 +3,10 @@ import React from 'react';
 
 import { Toaster as Sonner, Toaster } from '@/components/user/ui/sonner';
 import { TooltipProvider } from '@/components/user/ui/tooltip';
+import ToastContainer from '@/components/ui/ToastContainer';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 const queryClient = new QueryClient();
 
@@ -15,12 +17,15 @@ export function Providers({ children }: Props) {
         <QueryClientProvider client={queryClient}>
             <LanguageProvider>
                 <AuthProvider>
+                <ToastProvider>
                 <TooltipProvider>
                     {children}
                     {/* Mount your toasters once at the root */}
                     <Toaster />
                     <Sonner />
+                    <ToastContainer />
                 </TooltipProvider>
+                </ToastProvider>
                 </AuthProvider>
             </LanguageProvider>
         </QueryClientProvider>

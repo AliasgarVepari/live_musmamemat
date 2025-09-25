@@ -7,20 +7,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use App\FuzzySearch;
 
 class BannerController extends Controller
 {
+    use FuzzySearch;
     public function index(Request $request)
     {
         $query = Banner::query()->where('status', '!=', 'delete');
 
-        // Apply filters
+        // Apply filters with fuzzy search
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('image_url_en', 'like', "%{$search}%")
-                    ->orWhere('image_url_ar', 'like', "%{$search}%");
-            });
+            $searchFields = ['image_url_en', 'image_url_ar'];
+            $relationFields = [];
+            
+            $this->applyFuzzySearch($query, $request->search, $searchFields, $relationFields);
         }
 
         if ($request->filled('position')) {

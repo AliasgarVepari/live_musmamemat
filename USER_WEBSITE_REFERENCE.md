@@ -99,9 +99,24 @@
 - Components: `resources/js/components/user/`
 - Hooks: `resources/js/hooks/user/`
 
+## CSS Configuration
+
+### Tailwind CSS v4 Setup
+
+The user website uses Tailwind CSS v4 with a specific configuration in `resources/css/user/app.css`:
+
+- Uses `@import 'tailwindcss'` instead of `@tailwind` directives
+- Includes `@source` directives to scan specific directories
+- Uses `@theme` directive to map design tokens to Tailwind utilities
+- Includes `@custom-variant dark` for dark mode support
+- Maps CSS custom properties to Tailwind color utilities using `hsl(var(--variable))`
+
+**Important**: Do not modify the app.css files unless explicitly requested. The CSS configuration is properly set up for Tailwind v4 and should not be changed.
+
 ## Notes
 
 - Maintain consistency with admin dashboard patterns
 - Follow established coding standards
 - Ensure responsive design works correctly
 - Test all functionality thoroughly
+- Do not modify CSS files unless specifically requested

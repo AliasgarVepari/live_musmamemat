@@ -83,7 +83,7 @@ export const CategoryGrid = () => {
                                 icon={Package} // Fallback icon
                                 iconUrl={category.icon_url} // Use actual icon from database
                                 title={language === 'ar' ? category.name_ar : category.name_en}
-                                productCount={0} // We can add product count later if needed
+                                productCount={category.product_count || 0}
                                 className="animate-fade-in"
                                 onClick={() => router.visit(products.index.get({ query: { category: category.slug } }))}
                             />

@@ -1,4 +1,3 @@
-import { router } from '@inertiajs/react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -11,6 +10,7 @@ interface PaginationState {
 
 interface UseCachedPaginationOptions<T = any> {
     endpoint: string;
+    dataKey?: string; // key to extract from JSON response
     initialPage?: number;
     initialPerPage?: string;
     initialSearch?: string;
@@ -21,6 +21,7 @@ interface UseCachedPaginationOptions<T = any> {
 
 export const useCachedPagination = <T = any>({
     endpoint,
+    dataKey,
     initialPage = 1,
     initialPerPage = '20',
     initialSearch = '',
@@ -35,38 +36,67 @@ export const useCachedPagination = <T = any>({
         filters: initialFilters,
     });
 
+    const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
     const [isNavigating, setIsNavigating] = useState(false);
 
-    // Create query key that includes all pagination parameters
-    const queryKey = ['admin', endpoint, paginationState];
+    // Create query key that includes all pagination parameters with debounced search
+    const queryKey = ['admin', endpoint, {
+        ...paginationState,
+        search: debouncedSearch
+    }];
 
-    // Fetch function that uses Inertia.js but returns a promise
+    // Fetch function that uses fetch API for AJAX requests
     const fetchData = useCallback(async (): Promise<T> => {
-        return new Promise((resolve, reject) => {
+        try {
+            setIsNavigating(true);
+            
             const params = {
                 page: paginationState.currentPage,
                 per_page: paginationState.perPage,
-                ...(paginationState.search && { search: paginationState.search }),
+                ...(debouncedSearch && { search: debouncedSearch }),
                 ...Object.fromEntries(Object.entries(paginationState.filters).filter(([_, value]) => value && value !== 'all')),
             };
 
-            router.get(endpoint, params, {
-                preserveState: true,
-                replace: true,
-                onStart: () => setIsNavigating(true),
-                onFinish: () => setIsNavigating(false),
-                onSuccess: (page) => {
-                    // Extract the main data from the page props
-                    const dataKey = endpoint.split('/').pop(); // e.g., 'ads', 'users', 'finance'
-                    const mainData = page.props[dataKey];
-                    resolve(mainData as T);
-                },
-                onError: (errors) => {
-                    reject(new Error(Object.values(errors).flat().join(', ')));
+            // Build query string from params
+            const queryParams = new URLSearchParams();
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    queryParams.append(key, value.toString());
+                }
+            });
+            
+            const queryString = queryParams.toString();
+            const url = `${endpoint}${queryString ? `?${queryString}` : ''}`;
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'J-Json': 'true',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
-        });
-    }, [endpoint, paginationState]);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Extract the main data from the response
+            const key = dataKey || endpoint.split('/').pop(); // e.g., 'transactions'
+            const mainData = key ? data[key] : data;
+            
+            return mainData as T;
+        } catch (error) {
+            console.error('Error fetching paginated data:', error);
+            console.error('Error fetching paginated data:', endpoint);
+            throw error;
+        } finally {
+            setIsNavigating(false);
+        }
+    }, [endpoint, paginationState, debouncedSearch]);
 
     // React Query hook
     const query = useQuery({
@@ -106,7 +136,7 @@ export const useCachedPagination = <T = any>({
     // Debounced search effect
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            // This will trigger a new query with the updated search term
+            setDebouncedSearch(paginationState.search);
         }, 300);
 
         return () => clearTimeout(timeoutId);

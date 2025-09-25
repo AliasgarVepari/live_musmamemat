@@ -54,21 +54,41 @@ interface FinanceData {
 }
 
 const fetchFinanceData = async (filters: FinanceFilters = {}): Promise<FinanceData> => {
-    return new Promise((resolve, reject) => {
-        router.get('/admin/finance', filters, {
-            preserveState: true,
-            replace: true,
-            onSuccess: (page) => {
-                resolve({
-                    transactions: page.props.transactions as TransactionsResponse,
-                    stats: page.props.stats as FinanceStats,
-                });
-            },
-            onError: (errors) => {
-                reject(new Error(Object.values(errors).flat().join(', ')));
+    try {
+        // Build query string from filters
+        const queryParams = new URLSearchParams();
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                queryParams.append(key, value.toString());
+            }
+        });
+        
+        const queryString = queryParams.toString();
+        const url = `/admin/finance${queryString ? `?${queryString}` : ''}`;
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
         });
-    });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        return {
+            transactions: data.transactions as TransactionsResponse,
+            stats: data.stats as FinanceStats,
+        };
+    } catch (error) {
+        console.error('Error fetching finance data:', error);
+        throw error;
+    }
 };
 
 export const useFinanceQuery = (filters: FinanceFilters = {}) => {

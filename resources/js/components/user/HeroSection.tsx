@@ -55,7 +55,11 @@ export const HeroSection = () => {
             <Button 
               variant="secondary" 
               size="lg"
-              onClick={() => navigate('/sell')}
+              onClick={() => {
+                // Clear any existing draft data for new listing
+                localStorage.removeItem('sell-draft');
+                navigate('/sell/category');
+              }}
               className="group"
             >
               <span className={language === 'ar' ? 'font-arabic' : ''}>{t('hero.cta.sell')}</span>

@@ -20,19 +20,25 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 interface Transaction {
     id: number;
+    transaction_id: string;
     user: {
         name_en: string;
+        name_ar: string;
         email: string;
     };
     subscriptionPlan?: {
         name_en: string;
+        name_ar: string;
     } | null;
-    status: 'active' | 'cancelled' | 'expired' | 'revoked';
+    type: 'subscription' | 'upgrade' | 'renewal';
+    status: 'pending' | 'completed' | 'failed' | 'refunded';
     payment_method: string | null;
-    amount_paid: number | string;
-    payment_id: string | null;
-    starts_at: string | null;
-    expires_at: string | null;
+    payment_gateway: string | null;
+    amount: number | string;
+    currency: string;
+    description: string | null;
+    metadata: Record<string, any> | null;
+    processed_at: string | null;
     created_at: string;
 }
 
@@ -50,6 +56,7 @@ interface Filters {
     search?: string;
     status?: string;
     payment_method?: string;
+    type?: string;
     date_from?: string;
     date_to?: string;
     amount_min?: string;
@@ -60,7 +67,7 @@ interface Filters {
 interface Stats {
     total_revenue: number | string;
     total_transactions: number;
-    active_subscriptions: number;
+    completed_transactions: number;
     monthly_revenue: number | string;
 }
 
@@ -82,14 +89,17 @@ export default function Index({ transactions, filters, stats }: Props) {
         setPerPage,
         setSearch,
         updateFilter,
+        refetch: refetchListing,
     } = useCachedPagination<typeof transactions>({
         endpoint: '/admin/finance',
+        dataKey: 'transactions',
         initialPage: transactions.current_page,
         initialPerPage: filters.per_page || '10',
         initialSearch: filters.search || '',
         initialFilters: {
             status: filters.status || 'all',
             payment_method: filters.payment_method || 'all',
+            type: filters.type || 'all',
             date_from: filters.date_from || '',
             date_to: filters.date_to || '',
             amount_min: filters.amount_min || '',
@@ -126,22 +136,35 @@ export default function Index({ transactions, filters, stats }: Props) {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'active':
-                return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-            case 'cancelled':
-                return <Badge className="bg-orange-100 text-orange-800">Cancelled</Badge>;
-            case 'expired':
-                return <Badge className="bg-gray-100 text-gray-800">Expired</Badge>;
-            case 'revoked':
-                return <Badge className="bg-red-100 text-red-800">Revoked</Badge>;
+            case 'completed':
+                return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+            case 'pending':
+                return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+            case 'failed':
+                return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+            case 'refunded':
+                return <Badge className="bg-orange-100 text-orange-800">Refunded</Badge>;
             default:
                 return <Badge variant="secondary">{status}</Badge>;
         }
     };
 
+    const getTypeBadge = (type: string) => {
+        switch (type) {
+            case 'subscription':
+                return <Badge className="bg-blue-100 text-blue-800">Subscription</Badge>;
+            case 'upgrade':
+                return <Badge className="bg-purple-100 text-purple-800">Upgrade</Badge>;
+            case 'renewal':
+                return <Badge className="bg-green-100 text-green-800">Renewal</Badge>;
+            default:
+                return <Badge variant="secondary">{type}</Badge>;
+        }
+    };
+
     const formatCurrency = (amount: number | string) => {
         const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-        return `$${numericAmount.toFixed(2)}`;
+        return `${numericAmount.toFixed(2)} KWD`;
     };
 
     const formatDate = (dateString: string | null) => {
@@ -221,8 +244,8 @@ export default function Index({ transactions, filters, stats }: Props) {
                                     <Users className="h-6 w-6 text-purple-600" />
                                 </div>
                                 <div className="ml-4">
-                                    <p className="text-sm font-medium text-gray-600">Active Subscriptions</p>
-                                    <p className="text-2xl font-bold text-gray-900">{stats.active_subscriptions}</p>
+                                    <p className="text-sm font-medium text-gray-600">Completed Transactions</p>
+                                    <p className="text-2xl font-bold text-gray-900">{stats.completed_transactions}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -274,10 +297,25 @@ export default function Index({ transactions, filters, stats }: Props) {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Statuses</SelectItem>
-                                        <SelectItem value="active">Active</SelectItem>
-                                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                                        <SelectItem value="expired">Expired</SelectItem>
-                                        <SelectItem value="revoked">Revoked</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="failed">Failed</SelectItem>
+                                        <SelectItem value="refunded">Refunded</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium">Type</label>
+                                <Select value={paginationState.filters.type} onValueChange={(value) => updateFilter('type', value)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="All Types" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Types</SelectItem>
+                                        <SelectItem value="subscription">Subscription</SelectItem>
+                                        <SelectItem value="upgrade">Upgrade</SelectItem>
+                                        <SelectItem value="renewal">Renewal</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -303,19 +341,25 @@ export default function Index({ transactions, filters, stats }: Props) {
 
                             <div>
                                 <label className="text-sm font-medium">Date Range</label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        type="date"
-                                        value={paginationState.filters.date_from}
-                                        onChange={(e) => updateFilter('date_from', e.target.value)}
-                                        placeholder="From"
-                                    />
-                                    <Input
-                                        type="date"
-                                        value={paginationState.filters.date_to}
-                                        onChange={(e) => updateFilter('date_to', e.target.value)}
-                                        placeholder="To"
-                                    />
+                                <div className="flex gap-3">
+                                    <div className="flex-1">
+                                        <label className="text-xs text-gray-500 mb-1 block">From</label>
+                                        <Input
+                                            type="date"
+                                            value={paginationState.filters.date_from}
+                                            onChange={(e) => updateFilter('date_from', e.target.value)}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-xs text-gray-500 mb-1 block">To</label>
+                                        <Input
+                                            type="date"
+                                            value={paginationState.filters.date_to}
+                                            onChange={(e) => updateFilter('date_to', e.target.value)}
+                                            className="w-full"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -323,19 +367,27 @@ export default function Index({ transactions, filters, stats }: Props) {
                         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div>
                                 <label className="text-sm font-medium">Amount Range</label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        type="number"
-                                        placeholder="Min Amount"
-                                        value={paginationState.filters.amount_min}
-                                        onChange={(e) => updateFilter('amount_min', e.target.value)}
-                                    />
-                                    <Input
-                                        type="number"
-                                        placeholder="Max Amount"
-                                        value={paginationState.filters.amount_max}
-                                        onChange={(e) => updateFilter('amount_max', e.target.value)}
-                                    />
+                                <div className="flex gap-3">
+                                    <div className="flex-1">
+                                        <label className="text-xs text-gray-500 mb-1 block">Min Amount</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={paginationState.filters.amount_min}
+                                            onChange={(e) => updateFilter('amount_min', e.target.value)}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-xs text-gray-500 mb-1 block">Max Amount</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="1000.00"
+                                            value={paginationState.filters.amount_max}
+                                            onChange={(e) => updateFilter('amount_max', e.target.value)}
+                                            className="w-full"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
@@ -370,6 +422,7 @@ export default function Index({ transactions, filters, stats }: Props) {
                                     <tr className="border-b">
                                         <th className="px-4 py-3 text-left">Transaction ID</th>
                                         <th className="px-4 py-3 text-left">User</th>
+                                        <th className="px-4 py-3 text-left">Type</th>
                                         <th className="px-4 py-3 text-left">Plan</th>
                                         <th className="px-4 py-3 text-left">Status</th>
                                         <th className="px-4 py-3 text-left">Payment Method</th>
@@ -380,18 +433,34 @@ export default function Index({ transactions, filters, stats }: Props) {
                                 <tbody>
                                     {transactionsData?.data?.map((transaction: Transaction) => (
                                         <tr key={transaction.id} className="border-b hover:bg-gray-50">
-                                            <td className="px-4 py-3 font-mono text-sm">#{transaction.id}</td>
+                                            <td className="px-4 py-3 font-mono text-sm">
+                                                <div className="font-medium">#{transaction.id}</div>
+                                                <div className="text-xs text-gray-500">{transaction.transaction_id}</div>
+                                            </td>
                                             <td className="px-4 py-3">
                                                 <div>
                                                     <div className="font-medium">{transaction.user.name_en}</div>
                                                     <div className="text-sm text-gray-500">{transaction.user.email}</div>
                                                 </div>
                                             </td>
+                                            <td className="px-4 py-3">{getTypeBadge(transaction.type)}</td>
                                             <td className="px-4 py-3">{transaction.subscriptionPlan?.name_en || 'N/A'}</td>
                                             <td className="px-4 py-3">{getStatusBadge(transaction.status)}</td>
-                                            <td className="px-4 py-3">{transaction.payment_method || 'N/A'}</td>
-                                            <td className="px-4 py-3 font-medium">{formatCurrency(transaction.amount_paid)}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-500">{formatDate(transaction.created_at)}</td>
+                                            <td className="px-4 py-3">
+                                                <div className="text-sm">{transaction.payment_method || 'N/A'}</div>
+                                                {transaction.payment_gateway && (
+                                                    <div className="text-xs text-gray-500">{transaction.payment_gateway}</div>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 font-medium">{formatCurrency(transaction.amount)}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500">
+                                                <div>{formatDate(transaction.created_at)}</div>
+                                                {transaction.processed_at && (
+                                                    <div className="text-xs text-gray-400">
+                                                        Processed: {formatDate(transaction.processed_at)}
+                                                    </div>
+                                                )}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -407,6 +476,7 @@ export default function Index({ transactions, filters, stats }: Props) {
                                     {paginationState.search ||
                                     paginationState.filters.status !== 'all' ||
                                     paginationState.filters.payment_method !== 'all' ||
+                                    paginationState.filters.type !== 'all' ||
                                     paginationState.filters.date_from ||
                                     paginationState.filters.date_to ||
                                     paginationState.filters.amount_min ||

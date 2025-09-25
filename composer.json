@@ -13,6 +13,7 @@
         "aws/aws-sdk-php": "^3.356",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^12.0",
+        "laravel/sanctum": "^4.2",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
         "league/flysystem-aws-s3-v3": "^3.29"

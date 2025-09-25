@@ -5,9 +5,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\Category;
 use App\Models\Condition;
+use App\Models\Favorite;
 use App\Models\Governorate;
 use App\Models\PriceType;
+use App\Models\SubscriptionPlan;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class ProductApiController extends Controller
 {
@@ -19,7 +25,6 @@ class ProductApiController extends Controller
         $query = Ad::where('status', 'active')
             ->where('is_approved', true)
             ->with(['category:id,name_en,name_ar,slug', 'governorate:id,name_en,name_ar', 'primaryImage', 'priceType:id,name_en,name_ar', 'condition:id,name_en,name_ar', 'user:id,name_en,name_ar,profile_picture_url,created_at']);
-
         // Category filter
         if ($request->filled('category') && $request->category !== 'all') {
             $category = Category::where('slug', $request->category)->first();
@@ -112,7 +117,16 @@ class ProductApiController extends Controller
 
         $products = $query->paginate($perPage);
 
-        return response()->json($products);
+        // Transform the response data to use camelCase for primaryImage
+        $responseData = $products->toArray();
+        if (isset($responseData['data'])) {
+            foreach ($responseData['data'] as &$product) {
+                $product['primaryImage'] = $product['primary_image'] ?? null;
+                unset($product['primary_image']);
+            }
+        }
+
+        return response()->json($responseData);
     }
 
     /**
@@ -128,6 +142,7 @@ class ProductApiController extends Controller
                 'governorate:id,name_en,name_ar',
                 'condition:id,name_en,name_ar',
                 'priceType:id,name_en,name_ar',
+                'primaryImage',
                 'images',
                 'user:id,name_en,name_ar,phone,email,created_at',
             ])
@@ -145,9 +160,21 @@ class ProductApiController extends Controller
             ->limit(4)
             ->get();
 
+        // Transform the response data to use camelCase for primaryImage
+        $productData = $product->toArray();
+        $productData['primaryImage'] = $productData['primary_image'] ?? null;
+        unset($productData['primary_image']);
+
+        $relatedProductsData = $relatedProducts->map(function ($relatedProduct) {
+            $data = $relatedProduct->toArray();
+            $data['primaryImage'] = $data['primary_image'] ?? null;
+            unset($data['primary_image']);
+            return $data;
+        });
+
         return response()->json([
-            'product'         => $product,
-            'relatedProducts' => $relatedProducts,
+            'product'         => $productData,
+            'relatedProducts' => $relatedProductsData,
         ]);
     }
 
@@ -198,5 +225,779 @@ class ProductApiController extends Controller
             ->get(['id', 'name_en', 'name_ar']);
 
         return response()->json($priceTypes);
+    }
+
+    /**
+     * Store a new ad
+     */
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required|exists:categories,id',
+            'title_en' => 'required|string|max:255',
+            'title_ar' => 'required|string|max:255',
+            'description_en' => 'required|string|max:2000',
+            'description_ar' => 'required|string|max:2000',
+            'product_details_en' => 'nullable|string|max:5000',
+            'product_details_ar' => 'nullable|string|max:5000',
+            'condition_id' => 'required|exists:conditions,id',
+            'governorate_id' => 'required|exists:governorates,id',
+            'price' => 'required|numeric|min:0',
+            'price_type_id' => 'required|exists:price_types,id',
+            'is_negotiable' => 'boolean',
+            'status' => 'nullable|in:draft,active,pending',
+            'current_step' => 'nullable|integer|min:1|max:4',
+            'images' => 'nullable|array|max:10',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max per image
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::guard('sanctum')->user();
+
+        // Check if user has active subscription and can create ads
+        $userSubscription = $user->subscription;
+        $hasActiveSubscription = $this->userHasActiveSubscription($user->id);
+        $canCreateAd = $userSubscription && $userSubscription->canCreateAd();
+        $requestedStatus = $request->input('status', 'draft');
+        
+        // If user wants to create an active ad but can't (no allowance), return error
+        if ($requestedStatus === 'active' && !$canCreateAd) {
+            if (!$hasActiveSubscription) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You need an active subscription to create ads',
+                    'error_code' => 'NO_SUBSCRIPTION'
+                ], 403);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You have reached your monthly ad limit. Your allowance will reset next month.',
+                    'error_code' => 'MONTHLY_LIMIT_EXCEEDED',
+                    'remaining_ads' => $userSubscription->usable_ad_for_this_month
+                ], 403);
+            }
+        }
+        
+        // Determine final status based on subscription and request
+        $finalStatus = $hasActiveSubscription && $requestedStatus === 'active' ? 'active' : 'draft';
+        $isApproved = $hasActiveSubscription && $requestedStatus === 'active' ? null : false;
+
+        $ad = Ad::create([
+            'user_id' => $user->id,
+            'category_id' => $request->category_id,
+            'title_en' => $request->title_en,
+            'title_ar' => $request->title_ar,
+            'slug' => Ad::generateSlug($request->title_en),
+            'description_en' => $request->description_en,
+            'description_ar' => $request->description_ar,
+            'product_details_en' => $request->product_details_en,
+            'product_details_ar' => $request->product_details_ar,
+            'condition_id' => $request->condition_id,
+            'governorate_id' => $request->governorate_id,
+            'price' => $request->price,
+            'price_type_id' => $request->price_type_id,
+            'is_negotiable' => $request->boolean('is_negotiable', false),
+            'status' => $finalStatus,
+            'current_step' => $request->input('current_step', 1),
+            'is_approved' => $isApproved,
+        ]);
+
+        // Deduct from monthly allowance if creating an active ad
+        if ($finalStatus === 'active' && $userSubscription && $userSubscription->canCreateAd()) {
+            $userSubscription->deductAdAllowance();
+        }
+
+        // Handle image uploads
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $index => $image) {
+                // Upload to S3
+                $path = $image->store('ads/' . $ad->id, 's3');
+                $url = Storage::disk('s3')->url($path);
+                
+                $ad->images()->create([
+                    'filename' => $image->getClientOriginalName(),
+                    'original_name' => $image->getClientOriginalName(),
+                    'path' => $path,
+                    'url' => $url,
+                    'mime_type' => $image->getMimeType(),
+                    'file_size' => $image->getSize(),
+                    'is_primary' => $index === 0, // First image is primary
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ad created successfully',
+            'data' => [
+                'ad' => $ad->load(['category', 'governorate', 'condition', 'priceType', 'images']),
+            ],
+        ], 201);
+    }
+
+    /**
+     * Update an existing ad (for draft updates)
+     */
+    public function update(Request $request, $id)
+    {
+        $ad = Ad::where('id', $id)
+            ->where('user_id', Auth::guard('sanctum')->id())
+            ->first();
+
+        if (!$ad) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ad not found'
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:draft,active,pending',
+            'subscription_plan_id' => 'nullable|exists:subscription_plans,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $updateData = [
+            'status' => $request->status,
+        ];
+
+        // If updating to active status, set is_approved to null for review
+        if ($request->status === 'active') {
+            $updateData['is_approved'] = null;
+            $updateData['reject_reason'] = null; // Clear any previous reject reason
+        }
+
+        $ad->update($updateData);
+
+        // If subscription plan is provided, assign it
+        if ($request->subscription_plan_id) {
+            $this->assignSubscriptionToAd($ad, $request->subscription_plan_id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ad updated successfully',
+            'data' => [
+                'ad' => $ad->load(['category', 'governorate', 'condition', 'priceType', 'images']),
+            ],
+        ]);
+    }
+
+    /**
+     * Get subscription plans
+     */
+    public function subscriptionPlans()
+    {
+        $plans = SubscriptionPlan::where('status', 'active')
+            ->orderBy('price')
+            ->get(['id', 'name_en', 'name_ar', 'price', 'months_count', 'is_lifetime']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $plans,
+        ]);
+    }
+
+    /**
+     * Get upgrade subscription plans with discounted pricing
+     */
+    public function getUpgradePlans(Request $request)
+    {
+        // User is already authenticated by the api.auth middleware
+        $user = Auth::user();
+
+        $currentPlanId = $request->get('current_plan_id');
+        
+        if (!$currentPlanId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current plan ID is required'
+            ], 400);
+        }
+
+        // Get current subscription
+        $currentSubscription = \App\Models\UserSubscription::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where('expires_at', '>', now())
+            ->with('subscriptionPlan')
+            ->first();
+
+        if (!$currentSubscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active subscription found'
+            ], 404);
+        }
+
+        $currentPlan = $currentSubscription->subscriptionPlan;
+        
+        // Get plans with higher prices than current plan
+        $upgradePlans = SubscriptionPlan::where('status', 'active')
+            ->where('price', '>', $currentPlan->price)
+            ->orderBy('price')
+            ->get();
+
+        // Calculate discounts for each plan
+        $plansWithDiscounts = $upgradePlans->map(function ($plan) use ($currentSubscription, $currentPlan) {
+            // If current plan is lifetime, no discount should be applied
+            if ($currentPlan->is_lifetime) {
+                return [
+                    'id' => $plan->id,
+                    'name_en' => $plan->name_en,
+                    'name_ar' => $plan->name_ar,
+                    'price' => $plan->price,
+                    'months_count' => $plan->months_count,
+                    'is_lifetime' => $plan->is_lifetime,
+                    'remaining_days' => 0,
+                    'is_current_lifetime' => true,
+                ];
+            }
+
+            // Calculate remaining days as whole days (floor the decimal)
+            $remainingDays = floor(now()->diffInDays($currentSubscription->expires_at, false));
+            if ($remainingDays > 0) {
+                // Step 1: Calculate remaining days (already done above)
+                // Step 2: Calculate per day price using the subscription plan's duration (months)
+                $planDurationInDays = $currentPlan->months_count * 30; // Convert months to days
+                $currentPlanDailyRate = $currentPlan->price / $planDurationInDays; // Per day price
+                
+                // Step 3: Calculate discount amount
+                $discountAmount = $currentPlanDailyRate * $remainingDays;
+                
+                
+                // Calculate discounted price
+                $discountedPrice = max($plan->price - $discountAmount, $plan->price * 0.1); // Min 10% of original price
+                
+                return [
+                    'id' => $plan->id,
+                    'name_en' => $plan->name_en,
+                    'name_ar' => $plan->name_ar,
+                    'price' => $plan->price,
+                    'discounted_price' => round($discountedPrice, 2),
+                    'discount_amount' => round($discountAmount, 2),
+                    'original_price' => $plan->price,
+                    'months_count' => $plan->months_count,
+                    'is_lifetime' => $plan->is_lifetime,
+                    'remaining_days' => $remainingDays,
+                    'is_current_lifetime' => false,
+                ];
+            } else {
+                // No discount if subscription is expired
+                return [
+                    'id' => $plan->id,
+                    'name_en' => $plan->name_en,
+                    'name_ar' => $plan->name_ar,
+                    'price' => $plan->price,
+                    'months_count' => $plan->months_count,
+                    'is_lifetime' => $plan->is_lifetime,
+                    'remaining_days' => 0,
+                    'is_current_lifetime' => false,
+                ];
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $plansWithDiscounts
+        ]);
+    }
+
+    /**
+     * Assign subscription to an ad
+     */
+    public function assignSubscription(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'subscription_plan_id' => 'required|exists:subscription_plans,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::guard('sanctum')->user();
+        $ad = Ad::where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$ad) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ad not found or unauthorized'
+            ], 404);
+        }
+
+        $subscriptionPlan = SubscriptionPlan::findOrFail($request->subscription_plan_id);
+
+        // Calculate expiry date based on subscription plan
+        $expiresAt = $subscriptionPlan->is_lifetime 
+            ? now()->addYears(100) // Set very far future date for lifetime subscriptions
+            : now()->addMonths($subscriptionPlan->months_count);
+
+        // Create a transaction record
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'subscription_plan_id' => $subscriptionPlan->id,
+            'transaction_id' => Transaction::generateTransactionId(),
+            'type' => 'subscription',
+            'amount' => $subscriptionPlan->price,
+            'currency' => 'KWD',
+            'payment_method' => 'manual',
+            'status' => 'completed',
+            'description' => "Subscription purchase for ad: {$ad->title_en}",
+            'metadata' => [
+                'ad_id' => $ad->id,
+                'ad_title' => $ad->title_en,
+                'subscription_type' => $subscriptionPlan->is_lifetime ? 'lifetime' : 'monthly',
+                'months_count' => $subscriptionPlan->months_count,
+            ],
+            'processed_at' => now(),
+        ]);
+
+        // Create a new user subscription record
+        $userSubscription = $user->subscriptions()->create([
+            'subscription_plan_id' => $subscriptionPlan->id,
+            'status' => 'active',
+            'is_active' => true,
+            'usable_ad_for_this_month' => $subscriptionPlan->ad_limit ?? 0,
+            'last_allowance_reset' => now(),
+            'starts_at' => now(),
+            'expires_at' => $expiresAt,
+            'amount_paid' => $subscriptionPlan->price,
+            'payment_method' => 'manual', // For now, manual assignment
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Subscription assigned successfully',
+            'data' => [
+                'ad' => $ad->load(['category', 'governorate', 'condition', 'priceType', 'images']),
+                'subscription_plan' => $subscriptionPlan,
+                'user_subscription' => $userSubscription,
+                'transaction' => $transaction,
+            ],
+        ]);
+    }
+
+    /**
+     * Upgrade user subscription
+     */
+    public function upgradeSubscription(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'subscription_plan_id' => 'required|exists:subscription_plans,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::guard('sanctum')->user();
+        $currentSubscription = $user->subscription;
+        $newPlan = SubscriptionPlan::findOrFail($request->subscription_plan_id);
+
+        if (!$currentSubscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active subscription found'
+            ], 404);
+        }
+
+        // Check if it's actually an upgrade
+        if ($newPlan->price <= $currentSubscription->plan->price || 
+            $newPlan->ad_limit <= $currentSubscription->plan->ad_limit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected plan is not an upgrade'
+            ], 400);
+        }
+
+        // Calculate upgrade cost
+        $upgradeCost = $this->calculateUpgradeCost($currentSubscription, $newPlan);
+
+        // Calculate ad limit increase
+        $adLimitIncrease = $newPlan->ad_limit - $currentSubscription->plan->ad_limit;
+
+        // Create transaction record
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'subscription_plan_id' => $newPlan->id,
+            'transaction_id' => Transaction::generateTransactionId(),
+            'type' => 'upgrade',
+            'amount' => $upgradeCost,
+            'currency' => 'KWD',
+            'payment_method' => 'manual',
+            'status' => 'completed',
+            'description' => "Subscription upgrade from {$currentSubscription->plan->name_en} to {$newPlan->name_en}",
+            'metadata' => [
+                'upgrade_cost' => $upgradeCost,
+                'original_plan_price' => $currentSubscription->plan->price,
+                'new_plan_price' => $newPlan->price,
+                'ad_limit_increase' => $adLimitIncrease,
+                'subscription_type' => $newPlan->is_lifetime ? 'lifetime' : 'monthly',
+                'months_count' => $newPlan->months_count,
+            ],
+            'processed_at' => now(),
+        ]);
+
+        // Update subscription
+        $expiresAt = $newPlan->is_lifetime 
+            ? now()->addYears(100) 
+            : now()->addMonths($newPlan->months_count);
+
+        $currentSubscription->update([
+            'subscription_plan_id' => $newPlan->id,
+            'expires_at' => $expiresAt,
+            'amount_paid' => $upgradeCost,
+            'payment_method' => 'manual',
+            'usable_ad_for_this_month' => $currentSubscription->usable_ad_for_this_month + $adLimitIncrease,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Subscription upgraded successfully',
+            'data' => [
+                'user_subscription' => $currentSubscription->fresh(['plan']),
+                'subscription_plan' => $newPlan,
+                'transaction' => $transaction,
+                'ad_limit_increase' => $adLimitIncrease,
+                'new_allowance' => $currentSubscription->usable_ad_for_this_month + $adLimitIncrease,
+            ],
+        ]);
+    }
+
+    /**
+     * Calculate upgrade cost
+     */
+    private function calculateUpgradeCost($currentSubscription, $newPlan)
+    {
+        $currentPlan = $currentSubscription->plan;
+        $remainingDays = now()->diffInDays($currentSubscription->expires_at, false);
+        
+        if ($remainingDays <= 0) {
+            return $newPlan->price;
+        }
+
+        $dailyRate = $currentPlan->price / 30; // Assuming monthly plans
+        $remainingValue = $dailyRate * $remainingDays;
+        
+        return max(0, $newPlan->price - $remainingValue);
+    }
+
+    /**
+     * Delete an ad
+     */
+    public function destroy($id)
+    {
+        $ad = Ad::where('id', $id)
+            ->where('user_id', Auth::guard('sanctum')->id())
+            ->first();
+
+        if (!$ad) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ad not found or you do not have permission to delete this ad',
+            ], 404);
+        }
+
+        // Delete associated images from S3
+        foreach ($ad->images as $image) {
+            if ($image->path) {
+                Storage::disk('s3')->delete($image->path);
+            }
+        }
+
+        // Delete the ad (this will cascade delete images due to foreign key constraint)
+        $ad->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ad deleted successfully',
+        ]);
+    }
+
+    /**
+     * Add product to favorites
+     */
+    public function addToFavorites(Request $request, $id)
+    {
+        $user = Auth::guard('sanctum')->user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required'
+            ], 401);
+        }
+
+        $ad = Ad::where('id', $id)
+            ->where('status', 'active')
+            ->where('is_approved', true)
+            ->first();
+
+        if (!$ad) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found'
+            ], 404);
+        }
+
+        // Check if already favorited
+        $existingFavorite = Favorite::where('user_id', $user->id)
+            ->where('ad_id', $ad->id)
+            ->first();
+
+        if ($existingFavorite) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product already in favorites'
+            ], 400);
+        }
+
+        // Add to favorites
+        Favorite::create([
+            'user_id' => $user->id,
+            'ad_id' => $ad->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Product added to favorites'
+        ]);
+    }
+
+    /**
+     * Remove product from favorites
+     */
+    public function removeFromFavorites(Request $request, $id)
+    {
+        $user = Auth::guard('sanctum')->user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required'
+            ], 401);
+        }
+
+        $favorite = Favorite::where('user_id', $user->id)
+            ->where('ad_id', $id)
+            ->first();
+
+        if (!$favorite) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not in favorites'
+            ], 404);
+        }
+
+        $favorite->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Product removed from favorites'
+        ]);
+    }
+
+    /**
+     * Get user's favorites
+     */
+    public function getFavorites(Request $request)
+    {
+        $user = Auth::guard('sanctum')->user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required'
+            ], 401);
+        }
+
+        $favorites = Favorite::where('user_id', $user->id)
+            ->with([
+                'ad' => function ($query) {
+                    $query->with([
+                        'category:id,name_en,name_ar',
+                        'governorate:id,name_en,name_ar',
+                        'condition:id,name_en,name_ar',
+                        'priceType:id,name_en,name_ar',
+                        'primaryImage:id,ad_id,url,is_primary',
+                        'user:id,name_en,name_ar,profile_picture_url'
+                    ]);
+                }
+            ])
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return response()->json([
+            'success' => true,
+            'data' => $favorites
+        ]);
+    }
+
+    /**
+     * Check if product is favorited by user
+     */
+    public function checkFavorite(Request $request, $id)
+    {
+        $user = Auth::guard('sanctum')->user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => true,
+                'is_favorited' => false
+            ]);
+        }
+
+        $isFavorited = Favorite::where('user_id', $user->id)
+            ->where('ad_id', $id)
+            ->exists();
+
+        return response()->json([
+            'success' => true,
+            'is_favorited' => $isFavorited
+        ]);
+    }
+
+    /**
+     * Update the current step of a draft ad
+     */
+    public function updateCurrentStep(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'current_step' => 'required|integer|min:1|max:4',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::guard('sanctum')->user();
+        $ad = Ad::where('id', $id)
+            ->where('user_id', $user->id)
+            ->where('status', 'draft')
+            ->first();
+
+        if (!$ad) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Draft ad not found'
+            ], 404);
+        }
+
+        $ad->update([
+            'current_step' => $request->current_step
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Current step updated successfully',
+            'data' => [
+                'ad_id' => $ad->id,
+                'current_step' => $ad->current_step
+            ]
+        ]);
+    }
+
+    /**
+     * Check if user has active subscription
+     */
+    private function userHasActiveSubscription($userId)
+    {
+        return \App\Models\UserSubscription::where('user_id', $userId)
+            ->where('is_active', true)
+            ->where('expires_at', '>', now())
+            ->exists();
+    }
+
+    /**
+     * Get user's current subscription
+     */
+    public function getUserSubscription(Request $request)
+    {
+        $user = Auth::guard('sanctum')->user();
+        
+        $subscription = \App\Models\UserSubscription::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where('expires_at', '>', now())
+            ->with('subscriptionPlan')
+            ->first();
+
+        if (!$subscription) {
+            return response()->json([
+                'success' => true,
+                'data' => null,
+                'message' => 'No active subscription found'
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $subscription->id,
+                'status' => $subscription->status,
+                'is_active' => $subscription->is_active,
+                'usable_ad_for_this_month' => $subscription->usable_ad_for_this_month,
+                'expires_at' => $subscription->expires_at,
+                'plan' => [
+                    'id' => $subscription->subscriptionPlan->id,
+                    'name_en' => $subscription->subscriptionPlan->name_en,
+                    'name_ar' => $subscription->subscriptionPlan->name_ar,
+                    'ad_limit' => $subscription->subscriptionPlan->ad_limit,
+                    'price' => $subscription->subscriptionPlan->price,
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Increment contact count for an ad
+     */
+    public function incrementContactCount(Request $request, $id)
+    {
+        try {
+            $ad = Ad::findOrFail($id);
+            
+            // Increment the contact_count
+            $ad->increment('contact_count');
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Contact count incremented successfully',
+                'contact_count' => $ad->fresh()->contact_count
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to increment contact count',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

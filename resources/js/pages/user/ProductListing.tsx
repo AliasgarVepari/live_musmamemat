@@ -7,6 +7,9 @@ import { Input } from '@/components/user/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/user/ui/select';
 import { Slider } from '@/components/user/ui/slider';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFavorites } from '@/hooks/user/use-favorites';
+import { AuthModal } from '@/components/user/auth/AuthModal';
 import { useCachedPagination } from '@/hooks/user/use-cached-pagination';
 import { Head } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Heart, Loader2, MapPin, Search, SlidersHorizontal, Star } from 'lucide-react';
@@ -23,88 +26,6 @@ import home from '@/routes/user';
 import * as productRouter from '@/routes/user/product';
 import { router } from '@inertiajs/react';
 
-// Mock product data
-const mockProducts = [
-    {
-        id: '1',
-        title: 'Luxury Designer Handbag',
-        brand: 'Hermès',
-        price: 2500,
-        originalPrice: 3500,
-        condition: 'Excellent',
-        location: 'Kuwait City',
-        images: [luxuryHandbag1],
-        featured: true,
-        seller: 'Sarah K.',
-        postedDate: '2 days ago',
-    },
-    {
-        id: '2',
-        title: 'Vintage Gold Watch',
-        brand: 'Rolex',
-        price: 5200,
-        condition: 'Very Good',
-        location: 'Hawalli',
-        images: [goldWatch1],
-        featured: false,
-        seller: 'Ahmed M.',
-        postedDate: '1 week ago',
-    },
-    {
-        id: '3',
-        title: 'Diamond Earrings',
-        brand: 'Tiffany & Co',
-        price: 1800,
-        originalPrice: 2400,
-        condition: 'Excellent',
-        location: 'Salmiya',
-        images: [diamondEarrings1],
-        featured: true,
-        seller: 'Fatima A.',
-        postedDate: '3 days ago',
-    },
-    {
-        id: '4',
-        title: 'Designer Sunglasses',
-        brand: 'Ray-Ban',
-        price: 450,
-        originalPrice: 650,
-        condition: 'Very Good',
-        location: 'Kuwait City',
-        images: [designerSunglasses1],
-        featured: false,
-        seller: 'Omar K.',
-        postedDate: '5 days ago',
-    },
-    {
-        id: '5',
-        title: 'Silk Designer Scarf',
-        brand: 'Hermès',
-        price: 320,
-        originalPrice: 480,
-        condition: 'Excellent',
-        location: 'Hawalli',
-        images: [silkScarf1],
-        featured: false,
-        seller: 'Nour M.',
-        postedDate: '1 week ago',
-    },
-];
-
-const categories = [
-    { key: 'all', labelEn: 'All Categories', labelAr: 'جميع الفئات' },
-    { key: 'handbags', labelEn: 'Handbags', labelAr: 'الحقائب' },
-    { key: 'clothing', labelEn: 'Clothing', labelAr: 'الملابس' },
-    { key: 'jewelry', labelEn: 'Jewelry', labelAr: 'المجوهرات' },
-    { key: 'beauty-care', labelEn: 'Beauty & Care', labelAr: 'الجمال والعناية' },
-    { key: 'accessories', labelEn: 'Accessories', labelAr: 'الإكسسوارات' },
-    { key: 'children', labelEn: 'Children', labelAr: 'الأطفال' },
-    { key: 'toys', labelEn: 'Toys & Games', labelAr: 'الألعاب' },
-    { key: 'electronics', labelEn: 'Electronics', labelAr: 'الإلكترونيات' },
-    { key: 'travel', labelEn: 'Travel', labelAr: 'السفر' },
-    { key: 'home-furniture', labelEn: 'Home & Furniture', labelAr: 'المنزل' },
-    { key: 'watches', labelEn: 'Watches', labelAr: 'الساعات' },
-];
 
 interface ProductListingProps {
     products: any;
@@ -124,6 +45,9 @@ const ProductListing = ({
     filters: initialFilters,
 }: ProductListingProps) => {
     const { language } = useLanguage();
+    const { isAuthenticated } = useAuth();
+    const { isFavorited, toggleFavorite, loading: favoriteLoading } = useFavorites();
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     // Use cached pagination hook
     const {
@@ -170,6 +94,19 @@ const ProductListing = ({
 
     const handleSearch = (query: string) => {
         setSearch(query);
+    };
+
+    const handleFavoriteToggle = async (productId: number) => {
+        if (!isAuthenticated) {
+            setShowAuthModal(true);
+            return;
+        }
+
+        try {
+            await toggleFavorite(productId);
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+        }
     };
 
     const handleSortChange = (sort: string) => {
@@ -371,10 +308,13 @@ const ProductListing = ({
                         {/* Products Grid - Desktop */}
                         <div className="mb-12 hidden grid-cols-2 gap-6 md:grid lg:grid-cols-3 xl:grid-cols-4">
                             {products?.data?.map((product: any) => (
+                                console.log(product),
                                 <Card
                                     key={product.id}
                                     className="hover:shadow-luxury group cursor-pointer overflow-hidden transition-all duration-300"
-                                    onClick={() => router.visit(productRouter.show(product.id))}
+                                    onClick={() => router.visit(productRouter.show(product.id, { 
+                                        query: selectedCategory ? { selected_category: selectedCategory.slug } : {} 
+                                    }))}
                                 >
                                     <div className="relative">
                                         <img
@@ -391,13 +331,16 @@ const ProductListing = ({
                                         <Button
                                             variant="outline"
                                             size="icon"
-                                            className="absolute right-3 top-3 h-8 w-8 border-none bg-white/90 hover:bg-white"
+                                            className={`absolute right-3 top-3 h-8 w-8 border-none bg-white/90 hover:bg-white ${
+                                                isFavorited(product.id) ? 'text-brand-red-600' : ''
+                                            }`}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                // Handle wishlist toggle
+                                                handleFavoriteToggle(product.id);
                                             }}
+                                            disabled={favoriteLoading}
                                         >
-                                            <Heart className="h-4 w-4" />
+                                            <Heart className={`h-4 w-4 ${isFavorited(product.id) ? 'fill-current' : ''}`} />
                                         </Button>
                                     </div>
 
@@ -448,7 +391,9 @@ const ProductListing = ({
                                 <Card
                                     key={product.id}
                                     className="group cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-lg"
-                                    onClick={() => router.visit(productRouter.show(product.id))}
+                                    onClick={() => router.visit(productRouter.show(product.id, { 
+                                        query: selectedCategory ? { selected_category: selectedCategory.slug } : {} 
+                                    }))}
                                 >
                                     <div className="flex gap-3 p-3">
                                         {/* Product Image */}
@@ -603,6 +548,13 @@ const ProductListing = ({
 
                 <Footer />
             </div>
+
+            {/* Auth Modal */}
+            <AuthModal 
+                isOpen={showAuthModal} 
+                onClose={() => setShowAuthModal(false)}
+                onSuccess={() => setShowAuthModal(false)}
+            />
         </UserLayout>
     );
 };
