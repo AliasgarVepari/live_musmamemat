@@ -1,0 +1,51 @@
+name: Build & Deploy (prod tag)
+
+on:
+  push:
+    tags:
+      - "*-prod"   # e.g. v1.2.3-prod
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}       # e.g. 3.123.45.67 or your.domain
+      EC2_USER: ${{ secrets.EC2_USER }}       # usually "ubuntu"
+      EC2_PATH: ${{ secrets.EC2_PATH }}       # e.g. /var/www/app
+      EC2_PORT: ${{ secrets.EC2_PORT }}       # optional, default 22
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # so tags are available
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "${EC2_PORT:-22}" "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Copy built assets to EC2
+        run: |
+          rsync -az --delete -e "ssh -p ${EC2_PORT:-22}" \
+            public/build/ "${EC2_USER}@${EC2_HOST}:${EC2_PATH}/public/build/"
+
+      - name: Run deploy script on EC2
+        run: |
+          ssh -p "${EC2_PORT:-22}" "${EC2_USER}@${EC2_HOST}" \
+            "bash ${EC2_PATH}/scripts/deploy-prod.sh"
