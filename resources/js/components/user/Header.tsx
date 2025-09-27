@@ -12,6 +12,9 @@ export const Header = () => {
     const { isAuthenticated } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [showAuthModal, setShowAuthModal] = useState(false);
+    
+    // Check if we're in admin area
+    const isAdmin = window.location.pathname.startsWith('/admin');
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,16 +75,18 @@ export const Header = () => {
 
                         {/* Right side actions */}
                         <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                            {/* Language Switcher */}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={toggleLanguage}
-                                className="text-ink-900 hover:text-brand-red-600 group transition-colors"
-                            >
-                                <Globe className="group-hover:text-brand-red-600 h-4 w-4 stroke-[1.5]" />
-                                <span className="ml-1 text-xs font-medium rtl:ml-0 rtl:mr-1">{language === 'ar' ? 'EN' : 'ع'}</span>
-                            </Button>
+                            {/* Language Switcher - Only show in user area */}
+                            {!isAdmin && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={toggleLanguage}
+                                    className="text-ink-900 hover:text-brand-red-600 group transition-colors"
+                                >
+                                    <Globe className="group-hover:text-brand-red-600 h-4 w-4 stroke-[1.5]" />
+                                    <span className="ml-1 text-xs font-medium rtl:ml-0 rtl:mr-1">{language === 'ar' ? 'EN' : 'ع'}</span>
+                                </Button>
+                            )}
 
                             <Button 
                                 variant="ghost" 

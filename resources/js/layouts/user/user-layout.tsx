@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import { useToast } from '@/contexts/ToastContext';
+import { useForcedTheme } from '@/hooks/user/use-forced-theme';
 import '../../../css/user/app.css';
 
 interface UserLayoutProps {
@@ -10,6 +11,9 @@ interface UserLayoutProps {
 export default ({ children, ...props }: UserLayoutProps) => {
     const { addToast } = useToast();
     const { flash } = usePage().props as any;
+    
+    // Force light theme for user website
+    useForcedTheme();
 
     useEffect(() => {
         if (flash?.success) {

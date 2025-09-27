@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface LanguageContextType {
   language: 'ar' | 'en';
@@ -341,17 +341,47 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<'ar' | 'en'>(() => {
-    const saved = localStorage.getItem('preferred-language');
-    return (saved === 'ar' || saved === 'en') ? saved : 'ar';
+    // Check if we're in admin area
+    const isAdmin = window.location.pathname.startsWith('/admin');
+    
+    if (isAdmin) {
+      // Admin always uses English
+      return 'en';
+    } else {
+      // User website always defaults to Arabic
+      const saved = localStorage.getItem('preferred-language');
+      return (saved === 'ar' || saved === 'en') ? saved : 'ar';
+    }
   });
 
   const toggleLanguage = () => {
+    // Don't allow language switching in admin area
+    const isAdmin = window.location.pathname.startsWith('/admin');
+    if (isAdmin) {
+      return;
+    }
+    
     setLanguage(prev => {
       const newLang = prev === 'ar' ? 'en' : 'ar';
       localStorage.setItem('preferred-language', newLang);
       return newLang;
     });
   };
+
+  // Handle route changes to switch language between admin and user
+  useEffect(() => {
+    const isAdmin = window.location.pathname.startsWith('/admin');
+    
+    if (isAdmin && language !== 'en') {
+      setLanguage('en');
+    } else if (!isAdmin && language !== 'ar') {
+      // Only switch to Arabic if user hasn't explicitly chosen English
+      const saved = localStorage.getItem('preferred-language');
+      if (!saved || saved === 'ar') {
+        setLanguage('ar');
+      }
+    }
+  }, [window.location.pathname]);
 
   const t = (key: string): string => {
     return translations[language][key as keyof typeof translations['ar']] || key;
