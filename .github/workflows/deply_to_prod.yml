@@ -21,29 +21,29 @@ jobs:
         with:
           fetch-depth: 0   # so tags are available
 
-      - name: Use Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+      # - name: Use Node
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: "20"
+      #     cache: "npm"
 
-      - name: Install deps
-        run: npm ci
+      # - name: Install deps
+      #   run: npm ci
 
-      - name: Build
-        run: npm run build
+      # - name: Build
+      #   run: npm run build
 
-      - name: Prepare SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p "${EC2_PORT:-22}" "$EC2_HOST" >> ~/.ssh/known_hosts
+      # - name: Prepare SSH key
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     ssh-keyscan -p "${EC2_PORT:-22}" "$EC2_HOST" >> ~/.ssh/known_hosts
 
-      - name: Copy built assets to EC2
-        run: |
-          rsync -az --delete -e "ssh -p ${EC2_PORT:-22}" \
-            public/build/ "${EC2_USER}@${EC2_HOST}:${EC2_PATH}/public/build/"
+      # - name: Copy built assets to EC2
+      #   run: |
+      #     rsync -az --delete -e "ssh -p ${EC2_PORT:-22}" \
+      #       public/build/ "${EC2_USER}@${EC2_HOST}:${EC2_PATH}/public/build/"
 
       - name: Run deploy script on EC2
         run: |
