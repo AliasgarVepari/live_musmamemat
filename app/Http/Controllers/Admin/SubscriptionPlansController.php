@@ -60,7 +60,7 @@ class SubscriptionPlansController extends Controller
             'readable_billing_cycle' => $tempPlan->generateReadableBillingCycle(),
             'ad_limit' => $request->ad_limit,
             'featured_ads' => $request->featured_ads,
-            'featured_ads_count' => $request->has_unlimited_featured_ads ? null : $request->featured_ads,
+            'featured_ads_count' => $request->has_unlimited_featured_ads ? 0 : $request->featured_ads,
             'has_unlimited_featured_ads' => $request->has_unlimited_featured_ads ?? false,
             'priority_support' => $request->priority_support ?? false,
             'analytics' => $request->analytics ?? false,
