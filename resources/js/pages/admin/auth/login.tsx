@@ -6,7 +6,6 @@ import { Checkbox } from '@/components/admin/ui/checkbox';
 import { Input } from '@/components/admin/ui/input';
 import { Label } from '@/components/admin/ui/label';
 import AuthLayout from '@/layouts/admin/auth-layout';
-import { register } from '@/routes/admin';
 import { request } from '@/routes/admin/password';
 import { Form, Head } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
@@ -72,12 +71,12 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </Button>
                         </div>
 
-                        <div className="text-muted-foreground text-center text-sm">
+                        {/* <div className="text-muted-foreground text-center text-sm">
                             Don't have an account?{' '}
                             <TextLink href={register()} tabIndex={5}>
                                 Sign up
                             </TextLink>
-                        </div>
+                        </div> */}
                     </>
                 )}
             </Form>
