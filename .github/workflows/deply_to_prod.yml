@@ -33,12 +33,12 @@ jobs:
       # - name: Build
       #   run: npm run build
 
-      # - name: Prepare SSH key
-      #   run: |
-      #     mkdir -p ~/.ssh
-      #     echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-      #     chmod 600 ~/.ssh/id_rsa
-      #     ssh-keyscan -p "${EC2_PORT:-22}" "$EC2_HOST" >> ~/.ssh/known_hosts
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "${EC2_PORT:-22}" "$EC2_HOST" >> ~/.ssh/known_hosts
 
       # - name: Copy built assets to EC2
       #   run: |
