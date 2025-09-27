@@ -267,27 +267,10 @@ class ProductApiController extends Controller
         $canCreateAd = $userSubscription && $userSubscription->canCreateAd();
         $requestedStatus = $request->input('status', 'draft');
         
-        // If user wants to create an active ad but can't (no allowance), return error
-        if ($requestedStatus === 'active' && !$canCreateAd) {
-            if (!$hasActiveSubscription) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You need an active subscription to create ads',
-                    'error_code' => 'NO_SUBSCRIPTION'
-                ], 403);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You have reached your monthly ad limit. Your allowance will reset next month.',
-                    'error_code' => 'MONTHLY_LIMIT_EXCEEDED',
-                    'remaining_ads' => $userSubscription->usable_ad_for_this_month
-                ], 403);
-            }
-        }
-        
-        // Determine final status based on subscription and request
-        $finalStatus = $hasActiveSubscription && $requestedStatus === 'active' ? 'active' : 'draft';
-        $isApproved = $hasActiveSubscription && $requestedStatus === 'active' ? null : false;
+        // For selling wizard, we always create draft ads initially
+        // They will be updated to active in the update method
+        $finalStatus = 'draft';
+        $isApproved = false; // Draft ads are not approved initially
 
         $ad = Ad::create([
             'user_id' => $user->id,
@@ -309,10 +292,7 @@ class ProductApiController extends Controller
             'is_approved' => $isApproved,
         ]);
 
-        // Deduct from monthly allowance if creating an active ad
-        if ($finalStatus === 'active' && $userSubscription && $userSubscription->canCreateAd()) {
-            $userSubscription->deductAdAllowance();
-        }
+        // No need to deduct allowance here - will be handled in update method when ad goes active
 
         // Handle image uploads
         if ($request->hasFile('images')) {
@@ -347,8 +327,9 @@ class ProductApiController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $user = Auth::guard('sanctum')->user();
         $ad = Ad::where('id', $id)
-            ->where('user_id', Auth::guard('sanctum')->id())
+            ->where('user_id', $user->id)
             ->first();
 
         if (!$ad) {
@@ -371,21 +352,46 @@ class ProductApiController extends Controller
             ], 422);
         }
 
+        // Check user's subscription status
+        $userSubscription = $user->subscription;
+        $hasActiveSubscription = $this->userHasActiveSubscription($user->id);
+
         $updateData = [
-            'status' => $request->status,
+            'status' => 'active', // Always set to active when updating from selling wizard
+            'is_approved' => null, // Always set to null for admin review
+            'reject_reason' => null, // Clear any previous reject reason
         ];
 
-        // If updating to active status, set is_approved to null for review
-        if ($request->status === 'active') {
-            $updateData['is_approved'] = null;
-            $updateData['reject_reason'] = null; // Clear any previous reject reason
-        }
-
-        $ad->update($updateData);
-
-        // If subscription plan is provided, assign it
-        if ($request->subscription_plan_id) {
+        // Case 1: User doesn't have subscription but selected a plan
+        if (!$hasActiveSubscription && $request->subscription_plan_id) {
+            // Assign subscription first
             $this->assignSubscriptionToAd($ad, $request->subscription_plan_id);
+            // Then update ad to active status
+            $ad->update($updateData);
+        }
+        // Case 2: User has active subscription
+        else if ($hasActiveSubscription) {
+            // Check if user can create more ads with current subscription
+            if ($userSubscription && $userSubscription->canCreateAd()) {
+                // Deduct from allowance and activate ad
+                $userSubscription->deductAdAllowance();
+                $ad->update($updateData);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You have reached your monthly ad limit. Your allowance will reset next month.',
+                    'error_code' => 'MONTHLY_LIMIT_EXCEEDED',
+                    'remaining_ads' => $userSubscription ? $userSubscription->usable_ad_for_this_month : 0
+                ], 403);
+            }
+        }
+        // Case 3: User doesn't have subscription and didn't select a plan (shouldn't happen in selling wizard)
+        else {
+            return response()->json([
+                'success' => false,
+                'message' => 'You need an active subscription or must select a subscription plan to create ads',
+                'error_code' => 'NO_SUBSCRIPTION'
+            ], 403);
         }
 
         return response()->json([
