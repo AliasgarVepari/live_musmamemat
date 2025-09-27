@@ -1000,4 +1000,65 @@ class ProductApiController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Assign subscription to an ad (private helper method)
+     */
+    private function assignSubscriptionToAd($ad, $subscriptionPlanId)
+    {
+        $user = Auth::guard('sanctum')->user();
+        $subscriptionPlan = SubscriptionPlan::findOrFail($subscriptionPlanId);
+
+        // Check if user already has an active subscription
+        $existingSubscription = $user->subscriptions()
+            ->where('is_active', true)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if ($existingSubscription) {
+            // User already has an active subscription, just deduct from allowance if needed
+            if ($existingSubscription->canCreateAd()) {
+                $existingSubscription->deductAdAllowance();
+            }
+            return;
+        }
+
+        // Calculate expiry date based on subscription plan
+        $expiresAt = $subscriptionPlan->is_lifetime 
+            ? now()->addYears(100) // Set very far future date for lifetime subscriptions
+            : now()->addMonths($subscriptionPlan->months_count);
+
+        // Create a transaction record
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'subscription_plan_id' => $subscriptionPlan->id,
+            'transaction_id' => Transaction::generateTransactionId(),
+            'type' => 'subscription',
+            'amount' => $subscriptionPlan->price,
+            'currency' => 'KWD',
+            'payment_method' => 'manual',
+            'status' => 'completed',
+            'description' => "New subscription purchase",
+            'metadata' => [
+                'ad_id' => $ad->id,
+                'ad_title' => $ad->title_en,
+                'subscription_type' => $subscriptionPlan->is_lifetime ? 'lifetime' : 'monthly',
+                'months_count' => $subscriptionPlan->months_count,
+            ],
+            'processed_at' => now(),
+        ]);
+
+        // Create a new user subscription record
+        $userSubscription = $user->subscriptions()->create([
+            'subscription_plan_id' => $subscriptionPlan->id,
+            'status' => 'active',
+            'is_active' => true,
+            'usable_ad_for_this_month' => $subscriptionPlan->ad_limit - 1, // Subtract 1 for current ad
+            'last_allowance_reset' => now(),
+            'starts_at' => now(),
+            'expires_at' => $expiresAt,
+            'amount_paid' => $subscriptionPlan->price,
+            'payment_method' => 'manual',
+        ]);
+    }
 }
