@@ -50,7 +50,12 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
   const { toast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAllowanceExhaustedModal, setShowAllowanceExhaustedModal] = useState(false);
-  const [isUpgradeMode, setIsUpgradeMode] = useState(false);
+  const [upgradeEligible, setUpgradeEligible] = useState<boolean | null>(null);
+  const [upgradeError, setUpgradeError] = useState<string>('');
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
+  const [isUpgradeMode, setIsUpgradeMode] = useState(() => {
+    return localStorage.getItem('sell-upgrade-mode') === 'true';
+  });
   
   const [formData, setFormData] = useState<SellFormData>(() => {
     const saved = localStorage.getItem('sell-draft');
@@ -92,7 +97,12 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
   }, [formData]);
 
   const updateFormData = (newData: Partial<SellFormData>) => {
-    setFormData(prev => ({ ...prev, ...newData }));
+    console.log('SellWizard: updateFormData called with newData:', newData);
+    setFormData(prev => {
+      const updated = { ...prev, ...newData };
+      console.log('SellWizard: updated formData:', updated);
+      return updated;
+    });
   };
 
   // Fetch user subscription data
@@ -145,36 +155,69 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
     }
   };
 
+  const checkUpgradeEligibility = async () => {
+    try {
+     console.log('Checking upgrade eligibility');
+      setCheckingEligibility(true);
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const response = await fetch('/api/user/subscription-plans/upgrade-eligibility', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setUpgradeEligible(result.eligible);
+        if (!result.eligible) {
+          setUpgradeError(result.message);
+        }
+        setShowAllowanceExhaustedModal(true);
+      } else {
+        setUpgradeEligible(false);
+        setUpgradeError(result.message || 'Failed to check upgrade eligibility');
+        setShowAllowanceExhaustedModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking upgrade eligibility:', error);
+      setUpgradeEligible(false);
+      setUpgradeError('Failed to check upgrade eligibility');
+      setShowAllowanceExhaustedModal(true);
+    } finally {
+      setCheckingEligibility(false);
+    }
+  };
+
   const handleNext = async () => {
-    // If we're on step 2 (product details), create draft and check subscription
+    // If we're on step 2 (product details), check subscription first
     if (currentStep === 2) {
       setIsSubmitting(true);
       try {
-        console.log('Creating draft ad...');
-        const adId = await createDraftAd();
-        console.log('Draft created with ID:', adId);
-        if (!adId) {
-          console.log('Draft creation failed, stopping navigation');
-          return;
-        }
-
+        console.log('User subscription:', userSubscription);
         // Check if user has active subscription with remaining allowance
         const hasActiveSubscription = userSubscription?.is_active && 
           new Date(userSubscription.expires_at) > new Date();
         const hasRemainingAllowance = (userSubscription?.usable_ad_for_this_month ?? 0) > 0;
 
         if (hasActiveSubscription && hasRemainingAllowance) {
-          // Skip subscription step and go directly to submission
-          await handleSubmit();
-          // Navigate to step 4 (submitted) after successful submission
+          // User has subscription and allowance - create ad directly
+          console.log('User has active subscription, creating active ad...');
+          await createActiveAd();
           router.visit('/sell/submitted');
           return;
         } else if (hasActiveSubscription && !hasRemainingAllowance) {
-          // Show allowance exhausted modal
-          setShowAllowanceExhaustedModal(true);
+          // User has subscription but no allowance - check upgrade eligibility
+          await checkUpgradeEligibility();
+          return;
+        } else {
+          // User has no subscription - go to subscription selection
+          router.visit('/sell/subscription');
           return;
         }
-        // If no subscription, continue to step 3 (subscription selection)
       } finally {
         setIsSubmitting(false);
       }
@@ -192,7 +235,7 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
     }
   };
 
-  const createDraftAd = async () => {
+  const createActiveAd = async () => {
     try {
       // Get auth token
       const token = localStorage.getItem('authToken');
@@ -201,14 +244,7 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
         return;
       }
 
-      // If we already have a draft ad ID, update it instead of creating new one
-      if (formData.draftAdId) {
-        console.log('Updating existing draft ad:', formData.draftAdId);
-        setCurrentAdId(formData.draftAdId);
-        return formData.draftAdId; // Return existing draft ID
-      }
-
-      // Prepare form data for draft submission
+      // Prepare form data for ad submission
       const formDataToSubmit = new FormData();
       
       // Add all form fields
@@ -224,6 +260,7 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
       if (formData.price) formDataToSubmit.append('price', formData.price);
       if (formData.price_type_id) formDataToSubmit.append('price_type_id', formData.price_type_id.toString());
       if (formData.is_negotiable !== undefined) formDataToSubmit.append('is_negotiable', formData.is_negotiable ? '1' : '0');
+      if (formData.subscription_plan_id !== undefined) formDataToSubmit.append('subscription_plan_id', formData.subscription_plan_id.toString());
       
       // Add images
       if (formData.images) {
@@ -257,10 +294,10 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
         });
       }
 
-      // Create as draft
-      formDataToSubmit.append('status', 'draft');
+      // Always create as active
+      formDataToSubmit.append('status', 'active');
 
-      // Submit the draft ad
+      // Submit the ad
       const response = await fetch('/api/user/ads', {
         method: 'POST',
         headers: {
@@ -270,29 +307,52 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
         body: formDataToSubmit,
       });
 
+      // Handle different response status codes
+      if (response.status === 403) {
+        console.log('Received 403 Forbidden response');
+        // Handle 403 Forbidden - likely subscription/allowance issues
+        try {
+          const result = await response.json();
+          console.log('403 response data:', result);
+          if (result.error_code === 'MONTHLY_LIMIT_EXCEEDED') {
+            console.log('Monthly limit exceeded, checking upgrade eligibility');
+            // User has reached monthly limit, check upgrade eligibility
+            await checkUpgradeEligibility();
+            return;
+          } else if (result.error_code === 'NO_SUBSCRIPTION') {
+            console.log('No subscription, redirecting to subscription selection');
+            // User needs to select a subscription plan
+            router.visit('/sell/subscription');
+            return;
+          }
+        } catch (parseError) {
+          console.error('Error parsing 403 response:', parseError);
+        }
+        // Fallback for 403 without proper error structure
+        console.log('403 fallback: checking upgrade eligibility');
+        await checkUpgradeEligibility();
+        return;
+      }
+
       const result = await response.json();
       
-      // Debug: Log the response
-      console.log('Draft creation response:', result);
-      console.log('Response status:', response.status);
-
       if (result.success) {
-        // Store the draft ad ID for later use
-        const adId = result.data.ad.id;
-        setFormData(prev => ({ ...prev, draftAdId: adId }));
-        setCurrentAdId(adId);
-        toast({
-          title: "Draft Saved",
-          description: "Your ad has been saved as a draft",
-          variant: "default",
-        });
-        return adId; // Return the ad ID
+        console.log('Ad created successfully:', result.data.ad);
+        // Clear form data after successful submission
+        localStorage.removeItem('sell-draft');
+        return result.data.ad.id;
       } else {
-        // Debug: Log error handling
-        console.log('Error handling triggered:', result);
-        
-        // Handle validation errors
-        if (result.errors) {
+        // Handle specific error codes
+        if (result.error_code === 'NO_SUBSCRIPTION') {
+          // User needs to select a subscription plan
+          router.visit('/sell/subscription');
+          return;
+        } else if (result.error_code === 'MONTHLY_LIMIT_EXCEEDED') {
+          // User has reached monthly limit, check upgrade eligibility
+          await checkUpgradeEligibility();
+          return;
+        } else if (result.errors) {
+          // Handle validation errors
           const errorMessages = Object.values(result.errors).flat();
           console.log('Validation errors:', errorMessages);
           toast({
@@ -300,32 +360,35 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
             description: errorMessages.join(', '),
             variant: "destructive",
           });
-          return false; // Don't proceed to next step
+          throw new Error(errorMessages.join(', '));
         } else {
+          // Handle general errors
           console.log('General error:', result.message);
           toast({
             title: language === 'ar' ? 'خطأ' : "Error",
-            description: result.message || (language === 'ar' ? 'فشل في حفظ المسودة' : "Failed to save draft"),
+            description: result.message || (language === 'ar' ? 'فشل في إنشاء الإعلان' : "Failed to create ad"),
             variant: "destructive",
           });
-          return false;
+          throw new Error(result.message);
         }
       }
     } catch (error) {
-      console.error('Error creating draft ad:', error);
+      console.error('Error creating ad:', error);
       toast({
         title: language === 'ar' ? 'خطأ' : "Error",
         description: language === 'ar' ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.' : "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-      return false;
+      throw error;
     }
-    
-    return null; // Success but no ad ID (shouldn't happen)
   };
 
   const handleBack = () => {
     if (currentStep > 1) {
+      // Clear upgrade mode when going back from subscription step
+      if (currentStep === 3 && isUpgradeMode) {
+        clearUpgradeMode();
+      }
       router.visit(`/sell/${STEPS[currentStep - 2].path}`);
     } else {
       router.visit('/');
@@ -334,6 +397,9 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
 
   const handleSubmit = async () => {
     try {
+      console.log('SellWizard: handleSubmit called with formData:', formData);
+      console.log('SellWizard: subscription_plan_id:', formData.subscription_plan_id);
+      
       // Get auth token
       const token = localStorage.getItem('authToken');
       if (!token) {
@@ -347,18 +413,15 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
         return;
       }
 
-      // Determine ad status based on subscription
-      const hasActiveSubscription = userSubscription?.is_active && 
-        new Date(userSubscription.expires_at) > new Date();
-      const hasRemainingAllowance = (userSubscription?.usable_ad_for_this_month ?? 0) > 0;
-      const adStatus = (hasActiveSubscription && hasRemainingAllowance) ? 'active' : 'draft';
+      // Create active ad with subscription
+      const adId = await createActiveAd();
+      if (!adId) {
+        return;
+      }
 
-      let response;
-      let result;
-
-      if (currentAdId) {
-        // Update existing draft
-        response = await fetch(`/api/user/ads/${currentAdId}`, {
+      // If subscription is selected, assign it to the ad
+      if (formData.subscription_plan_id) {
+        const subscriptionResponse = await fetch(`/api/user/ads/${adId}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -366,122 +429,24 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
           },
           body: JSON.stringify({
-            status: adStatus,
             subscription_plan_id: formData.subscription_plan_id,
           }),
         });
 
-        result = await response.json();
-      } else {
-        // Create new ad
-        const formDataToSubmit = new FormData();
-        
-        // Add all form fields
-        if (formData.category_id) formDataToSubmit.append('category_id', formData.category_id.toString());
-        if (formData.title_en) formDataToSubmit.append('title_en', formData.title_en);
-        if (formData.title_ar) formDataToSubmit.append('title_ar', formData.title_ar);
-        if (formData.description_en) formDataToSubmit.append('description_en', formData.description_en);
-        if (formData.description_ar) formDataToSubmit.append('description_ar', formData.description_ar);
-        if (formData.product_details_en) formDataToSubmit.append('product_details_en', formData.product_details_en);
-        if (formData.product_details_ar) formDataToSubmit.append('product_details_ar', formData.product_details_ar);
-        if (formData.condition_id) formDataToSubmit.append('condition_id', formData.condition_id.toString());
-        if (formData.governorate_id) formDataToSubmit.append('governorate_id', formData.governorate_id.toString());
-        if (formData.price) formDataToSubmit.append('price', formData.price);
-        if (formData.price_type_id) formDataToSubmit.append('price_type_id', formData.price_type_id.toString());
-        if (formData.is_negotiable !== undefined) formDataToSubmit.append('is_negotiable', formData.is_negotiable ? '1' : '0');
-        
-        // Add images
-        if (formData.images) {
-          formData.images.forEach((image, index) => {
-            if (image instanceof File) {
-              formDataToSubmit.append(`images[${index}]`, image);
-            } else if (typeof image === 'string') {
-              // Check if it's a base64 string or a URL
-              if (image.startsWith('data:image/')) {
-                try {
-                  // Convert base64 string back to File for submission
-                  const byteString = atob(image.split(',')[1]);
-                  const mimeString = image.split(',')[0].split(':')[1].split(';')[0];
-                  const ab = new ArrayBuffer(byteString.length);
-                  const ia = new Uint8Array(ab);
-                  for (let i = 0; i < byteString.length; i++) {
-                    ia[i] = byteString.charCodeAt(i);
-                  }
-                  const blob = new Blob([ab], { type: mimeString });
-                  const file = new File([blob], `image_${index}.jpg`, { type: mimeString });
-                  formDataToSubmit.append(`images[${index}]`, file);
-                } catch (error) {
-                  console.error('Error converting base64 image:', error);
-                  // Skip this image if conversion fails
-                }
-              } else if (image.startsWith('http')) {
-                // Skip URL images as they're already uploaded
-                console.log('Skipping URL image:', image);
-              }
-            }
+        const subscriptionResult = await subscriptionResponse.json();
+        if (!subscriptionResult.success) {
+          toast({
+            title: language === 'ar' ? 'خطأ' : "Error",
+            description: subscriptionResult.message || (language === 'ar' ? 'فشل في تعيين خطة الاشتراك' : "Failed to assign subscription plan"),
+            variant: "destructive",
           });
+          return;
         }
-
-        formDataToSubmit.append('status', adStatus);
-
-        response = await fetch('/api/user/ads', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-          },
-          body: formDataToSubmit,
-        });
-
-        result = await response.json();
       }
-
-      if (result.success) {
-        // If subscription is selected, assign it to the ad
-        if (formData.subscription_plan_id && !formData.draftAdId) {
-          const subscriptionResponse = await fetch(`/api/user/ads/${result.data.ad.id}/subscription`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-            },
-            body: JSON.stringify({
-              subscription_plan_id: formData.subscription_plan_id,
-            }),
-          });
-
-          const subscriptionResult = await subscriptionResponse.json();
-          if (!subscriptionResult.success) {
-            toast({
-              title: language === 'ar' ? 'خطأ' : "Error",
-              description: subscriptionResult.message || (language === 'ar' ? 'فشل في تعيين خطة الاشتراك' : "Failed to assign subscription plan"),
-              variant: "destructive",
-            });
-            return;
-          }
-        }
 
     // Clear draft after successful submission
     localStorage.removeItem('sell-draft');
-        router.visit('/sell/submitted');
-      } else {
-        // Handle validation errors
-        if (result.errors) {
-          const errorMessages = Object.values(result.errors).flat();
-          toast({
-            title: language === 'ar' ? 'خطأ في التحقق' : "Validation Error",
-            description: errorMessages.join(', '),
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: language === 'ar' ? 'خطأ' : "Error",
-            description: result.message || (language === 'ar' ? 'فشل في إرسال الإعلان' : "Failed to submit ad"),
-            variant: "destructive",
-          });
-        }
-      }
+      router.visit('/sell/submitted');
     } catch (error) {
       console.error('Error submitting ad:', error);
       toast({
@@ -511,13 +476,14 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
             formData.images.length > 0
           );
       case 3:
+          console.log('SellWizard: canContinue check for step 3, subscription_plan_id:', formData.subscription_plan_id);
           return !!formData.subscription_plan_id;
       default:
         return false;
     }
     })();
     
-    // console.log('canContinue check:', { currentStep, formData, result });
+    console.log('SellWizard: canContinue check:', { currentStep, formData, result });
     return result;
   };
 
@@ -544,15 +510,34 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
     setShowAuthModal(false);
   };
 
-  const handleUpgradeSubscriptionClick = () => {
-    setShowAllowanceExhaustedModal(false);
-    setIsUpgradeMode(true);
-    router.visit('/sell/subscription');
+  const handleUpgradeSubscriptionClick = async () => {
+    // If eligibility hasn't been checked yet, check it now
+    if (upgradeEligible === null) {
+      await checkUpgradeEligibility();
+      return; // The modal will be updated with the result
+    }
+    
+    // Only proceed if eligible
+    if (upgradeEligible === true) {
+      setShowAllowanceExhaustedModal(false);
+      setIsUpgradeMode(true);
+      // Store upgrade mode in localStorage to persist across navigation
+      localStorage.setItem('sell-upgrade-mode', 'true');
+      router.visit('/sell/subscription');
+    }
   };
 
   const handleGoHome = () => {
     setShowAllowanceExhaustedModal(false);
+    // Clear upgrade mode when going home
+    setIsUpgradeMode(false);
+    localStorage.removeItem('sell-upgrade-mode');
     router.visit('/');
+  };
+
+  const clearUpgradeMode = () => {
+    setIsUpgradeMode(false);
+    localStorage.removeItem('sell-upgrade-mode');
   };
 
   const handleUpgradeSubscription = async () => {
@@ -586,6 +571,9 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
           variant: 'default',
         });
 
+        // Clear upgrade mode after successful upgrade
+        clearUpgradeMode();
+        
         // Now submit the ad with active status
         await submitAdWithStatus('active');
       } else {
@@ -819,6 +807,9 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
         onClose={() => setShowAllowanceExhaustedModal(false)}
         onUpgrade={handleUpgradeSubscriptionClick}
         onGoHome={handleGoHome}
+        upgradeEligible={upgradeEligible}
+        upgradeError={upgradeError}
+        checkingEligibility={checkingEligibility}
       />
     </div>
     </UserLayout>

@@ -1389,7 +1389,7 @@ function Profile({ user, requiresAuth, stats, recentListings: initialRecentListi
                                                 </p>
                                             </div>
                                         )}
-
+                                        {user.subscription ? (
                                         <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
                                             <DialogTrigger asChild>
                                                 <Button className="w-full">
@@ -1425,7 +1425,7 @@ function Profile({ user, requiresAuth, stats, recentListings: initialRecentListi
                                         </Button>
                                                 </DialogFooter>
                                             </DialogContent>
-                                        </Dialog>
+                                        </Dialog> ) : (<></>)}
                                     </CardContent>
                                 </Card>
 

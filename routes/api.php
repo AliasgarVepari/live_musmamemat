@@ -58,6 +58,8 @@ Route::prefix('user')->group(function () {
     Route::patch('/ads/{id}/current-step', [ProductApiController::class, 'updateCurrentStep'])->middleware('auth:sanctum');
     Route::get('/subscription-plans', [ProductApiController::class, 'subscriptionPlans']);
     Route::get('/subscription-plans/upgrade', [ProductApiController::class, 'getUpgradePlans'])->middleware(['web', 'api.auth']);
+    Route::get('/subscription-plans/upgrade-eligibility', [ProductApiController::class, 'checkUpgradeEligibility'])->middleware('auth:sanctum');
+    Route::get('/subscription-plans/upgrade-options', [ProductApiController::class, 'upgradeSubscriptionPlans'])->middleware('auth:sanctum');
     Route::get('/subscription', [ProductApiController::class, 'getUserSubscription'])->middleware('auth:sanctum');
     Route::post('/ads/{id}/subscription', [ProductApiController::class, 'assignSubscription'])->middleware('auth:sanctum');
     Route::post('/subscription/upgrade', [ProductApiController::class, 'upgradeSubscription'])->middleware('auth:sanctum');

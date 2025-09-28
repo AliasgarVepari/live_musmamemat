@@ -15,9 +15,20 @@ interface SubscriptionPlan {
   id: number;
   name_en: string;
   name_ar: string;
+  slug: string;
+  description_en?: string;
+  description_ar?: string;
   price: number;
   months_count: number;
   is_lifetime: boolean;
+  readable_billing_cycle?: string;
+  ad_limit: number;
+  featured_ads?: number;
+  featured_ads_count?: number;
+  has_unlimited_featured_ads?: boolean;
+  priority_support?: boolean;
+  analytics?: boolean;
+  status: string;
   features_en?: string;
   features_ar?: string;
 }
@@ -25,26 +36,54 @@ interface SubscriptionPlan {
 export const SelectSubscription = ({ formData, updateFormData }: SelectSubscriptionProps) => {
   const { language, t } = useLanguage();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [userSubscription, setUserSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadPlans = async () => {
+    const loadData = async () => {
       try {
+        // Load subscription plans
+        const plansResponse = await fetch('/api/user/subscription-plans');
+        const plansData = await plansResponse.json();
+        const allPlans = plansData.data || plansData;
+
+        // Load user subscription
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          const subscriptionResponse = await fetch('/api/user/subscription', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (subscriptionResponse.ok) {
+            const subscriptionData = await subscriptionResponse.json();
+            if (subscriptionData.success) {
+              setUserSubscription(subscriptionData.data);
+            }
+          }
+        }
+          // For non-subscribed users, show all plans
+          setPlans(allPlans);
+        
+      } catch (error) {
+        console.error('Error loading data:', error);
+        // Fallback to showing all plans
         const response = await fetch('/api/user/subscription-plans');
         const data = await response.json();
         setPlans(data.data || data);
-      } catch (error) {
-        console.error('Error loading subscription plans:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadPlans();
+    loadData();
   }, []);
 
   const handlePlanSelect = (planId: number) => {
+    console.log('SelectSubscription: handlePlanSelect called with planId:', planId);
     updateFormData({ subscription_plan_id: planId });
+    console.log('SelectSubscription: updateFormData called with subscription_plan_id:', planId);
   };
 
   const getPlanName = (plan: SubscriptionPlan) => {
@@ -52,65 +91,72 @@ export const SelectSubscription = ({ formData, updateFormData }: SelectSubscript
   };
 
   const getPlanFeatures = (plan: SubscriptionPlan) => {
-    // Default features based on plan type
-    const defaultFeatures = {
-      free: {
-        en: [
-          'Up to 5 images',
-          'Basic listing',
-          '7 days visibility',
-          'Standard support'
-        ],
-        ar: [
-          'حتى 5 صور',
-          'إعلان أساسي',
-          'ظهور لمدة 7 أيام',
-          'دعم قياسي'
-        ]
-      },
-      silver: {
-        en: [
-          'Up to 10 images',
-          'Featured listing',
-          '14 days visibility',
-          'Priority support',
-          'Analytics dashboard'
-        ],
-        ar: [
-          'حتى 10 صور',
-          'إعلان مميز',
-          'ظهور لمدة 14 يوم',
-          'دعم أولوي',
-          'لوحة تحليلات'
-        ]
-      },
-      gold: {
-        en: [
-          'Unlimited images',
-          'Premium listing',
-          '30 days visibility',
-          '24/7 support',
-          'Advanced analytics',
-          'Featured placement'
-        ],
-        ar: [
-          'صور غير محدودة',
-          'إعلان مميز',
-          'ظهور لمدة 30 يوم',
-          'دعم 24/7',
-          'تحليلات متقدمة',
-          'موضع مميز'
-        ]
+    const features: string[] = [];
+    
+    // Add ad limit feature
+    if (plan.ad_limit > 0) {
+      if (language === 'ar') {
+        features.push(`${plan.ad_limit} إعلان شهرياً`);
+      } else {
+        features.push(`${plan.ad_limit} ads per month`);
       }
-    };
-
-    const planName = getPlanName(plan).toLowerCase();
-    let planType = 'free';
+    }
     
-    if (planName.includes('silver') || planName.includes('فضي')) planType = 'silver';
-    if (planName.includes('gold') || planName.includes('ذهبي')) planType = 'gold';
+    // Add featured ads feature
+    if (plan.has_unlimited_featured_ads) {
+      if (language === 'ar') {
+        features.push('إعلانات مميزة غير محدودة');
+      } else {
+        features.push('Unlimited featured ads');
+      }
+    } else if (plan.featured_ads_count && plan.featured_ads_count > 0) {
+      if (language === 'ar') {
+        features.push(`${plan.featured_ads_count} إعلان مميز`);
+      } else {
+        features.push(`${plan.featured_ads_count} featured ads`);
+      }
+    }
     
-    return defaultFeatures[planType as keyof typeof defaultFeatures][language as 'en' | 'ar'];
+    // Add priority support feature
+    if (plan.priority_support) {
+      if (language === 'ar') {
+        features.push('دعم أولوي');
+      } else {
+        features.push('Priority support');
+      }
+    }
+    
+    // Add analytics feature
+    if (plan.analytics) {
+      if (language === 'ar') {
+        features.push('تحليلات متقدمة');
+      } else {
+        features.push('Analytics');
+      }
+    }
+      
+    
+    // Add lifetime feature
+    if (plan.is_lifetime) {
+      if (language === 'ar') {
+        features.push('اشتراك مدى الحياة');
+      } else {
+        features.push('Lifetime subscription');
+      }
+    }
+    
+    // If no features found, add basic features based on ad limit
+    if (features.length === 0) {
+      if (language === 'ar') {
+        features.push('إعلانات أساسية');
+        features.push('دعم قياسي');
+      } else {
+        features.push('Basic listings');
+        features.push('Standard support');
+      }
+    }
+    
+    return features;
   };
 
   const getPlanIcon = (plan: SubscriptionPlan) => {
@@ -156,15 +202,17 @@ export const SelectSubscription = ({ formData, updateFormData }: SelectSubscript
             >
               <CardContent className="p-6 flex flex-col h-full">
                 <div className="text-center mb-4">
-                  {/* <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-3 ${
-                    isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                  }`}>
-                    <IconComponent className="h-6 w-6" />
-                  </div> */}
+
                   
                   <h4 className={`text-lg font-semibold mb-1 ${language === 'ar' ? 'font-arabic' : ''}`}>
                     {getPlanName(plan)}
                   </h4>
+                  
+                  {(plan.description_en || plan.description_ar) && (
+                    <p className={`text-sm text-muted-foreground mb-3 ${language === 'ar' ? 'font-arabic' : ''}`}>
+                      {language === 'ar' ? plan.description_ar : plan.description_en}
+                    </p>
+                  )}
                   
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <span className={`text-2xl font-bold ${language === 'ar' ? 'font-arabic' : ''}`}>
@@ -207,6 +255,11 @@ export const SelectSubscription = ({ formData, updateFormData }: SelectSubscript
                       : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'
                   }`}
                   variant={isSelected ? 'default' : 'outline'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('SelectSubscription: Button clicked for plan:', plan.id);
+                    handlePlanSelect(plan.id);
+                  }}
                 >
                   {isSelected 
                     ? (language === 'ar' ? 'محدد' : 'Selected')

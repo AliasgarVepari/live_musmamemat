@@ -7,7 +7,7 @@ use App\Http\Controllers\Admin\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Admin\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('guest')->group(function () {
+Route::middleware('guest:admin')->group(function () {
     // Route::get('register', [RegisteredUserController::class, 'create'])
     //     ->name('admin.register');
 

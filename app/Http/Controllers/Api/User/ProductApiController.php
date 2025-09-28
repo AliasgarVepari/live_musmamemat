@@ -265,12 +265,35 @@ class ProductApiController extends Controller
         $userSubscription = $user->subscription;
         $hasActiveSubscription = $this->userHasActiveSubscription($user->id);
         $canCreateAd = $userSubscription && $userSubscription->canCreateAd();
-        $requestedStatus = $request->input('status', 'draft');
+        $subscriptionPlanId = $request->input('subscription_plan_id');
         
-        // For selling wizard, we always create draft ads initially
-        // They will be updated to active in the update method
-        $finalStatus = 'draft';
-        $isApproved = false; // Draft ads are not approved initially
+        // Validate that user can create ads
+        if (!$hasActiveSubscription && !$subscriptionPlanId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You need an active subscription or must select a subscription plan to create ads',
+                'error_code' => 'NO_SUBSCRIPTION'
+            ], 403);
+        }
+        
+        // If user has subscription but no allowance, check if they can upgrade
+        if ($hasActiveSubscription && !$canCreateAd && !$subscriptionPlanId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You have reached your monthly ad limit. Your allowance will reset next month or you can upgrade your subscription.',
+                'error_code' => 'MONTHLY_LIMIT_EXCEEDED',
+                'remaining_ads' => $userSubscription ? $userSubscription->usable_ad_for_this_month : 0
+            ], 403);
+        }
+        
+        // Always create as active - no more drafts
+        $finalStatus = 'active';
+        $isApproved = null; // Active ads await approval
+        
+        // If user has subscription and can create ads, deduct allowance
+        if ($hasActiveSubscription && $canCreateAd) {
+            $userSubscription->deductAdAllowance();
+        }
 
         $ad = Ad::create([
             'user_id' => $user->id,
@@ -292,7 +315,7 @@ class ProductApiController extends Controller
             'is_approved' => $isApproved,
         ]);
 
-        // No need to deduct allowance here - will be handled in update method when ad goes active
+        // Allowance deducted above if user has subscription
 
         // Handle image uploads
         if ($request->hasFile('images')) {
@@ -340,7 +363,6 @@ class ProductApiController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:draft,active,pending',
             'subscription_plan_id' => 'nullable|exists:subscription_plans,id',
         ]);
 
@@ -352,46 +374,9 @@ class ProductApiController extends Controller
             ], 422);
         }
 
-        // Check user's subscription status
-        $userSubscription = $user->subscription;
-        $hasActiveSubscription = $this->userHasActiveSubscription($user->id);
-
-        $updateData = [
-            'status' => 'active', // Always set to active when updating from selling wizard
-            'is_approved' => null, // Always set to null for admin review
-            'reject_reason' => null, // Clear any previous reject reason
-        ];
-
-        // Case 1: User doesn't have subscription but selected a plan
-        if (!$hasActiveSubscription && $request->subscription_plan_id) {
-            // Assign subscription first
+        // Only handle subscription assignment for non-subscribed users
+        if ($request->subscription_plan_id) {
             $this->assignSubscriptionToAd($ad, $request->subscription_plan_id);
-            // Then update ad to active status
-            $ad->update($updateData);
-        }
-        // Case 2: User has active subscription
-        else if ($hasActiveSubscription) {
-            // Check if user can create more ads with current subscription
-            if ($userSubscription && $userSubscription->canCreateAd()) {
-                // Deduct from allowance and activate ad
-                $userSubscription->deductAdAllowance();
-                $ad->update($updateData);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You have reached your monthly ad limit. Your allowance will reset next month.',
-                    'error_code' => 'MONTHLY_LIMIT_EXCEEDED',
-                    'remaining_ads' => $userSubscription ? $userSubscription->usable_ad_for_this_month : 0
-                ], 403);
-            }
-        }
-        // Case 3: User doesn't have subscription and didn't select a plan (shouldn't happen in selling wizard)
-        else {
-            return response()->json([
-                'success' => false,
-                'message' => 'You need an active subscription or must select a subscription plan to create ads',
-                'error_code' => 'NO_SUBSCRIPTION'
-            ], 403);
         }
 
         return response()->json([
@@ -404,13 +389,153 @@ class ProductApiController extends Controller
     }
 
     /**
+     * Check if user is eligible for upgrade
+     */
+    public function checkUpgradeEligibility()
+    {
+        $user = Auth::guard('sanctum')->user();
+        $userSubscription = $user->subscription;
+
+        if (!$userSubscription || !$userSubscription->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active subscription found',
+                'eligible' => false
+            ], 400);
+        }
+
+        $currentPlan = $userSubscription->subscriptionPlan;
+        
+        // Check if there are any plans with higher price and higher ad_limit
+        $eligiblePlans = SubscriptionPlan::where('status', 'active')
+            ->where('price', '>', $currentPlan->price)
+            ->where('ad_limit', '>', $currentPlan->ad_limit)
+            ->exists();
+
+        return response()->json([
+            'success' => true,
+            'eligible' => $eligiblePlans,
+            'message' => $eligiblePlans 
+                ? 'You are eligible for upgrade' 
+                : 'No upgrade options available. You already have the highest plan or no better plans exist.',
+            'current_plan' => [
+                'id' => $currentPlan->id,
+                'name_en' => $currentPlan->name_en,
+                'name_ar' => $currentPlan->name_ar,
+                'price' => $currentPlan->price,
+                'ad_limit' => $currentPlan->ad_limit
+            ]
+        ]);
+    }
+
+    /**
+     * Get upgrade subscription plans (higher price and ad_limit than current)
+     */
+    public function upgradeSubscriptionPlans()
+    {
+        $user = Auth::guard('sanctum')->user();
+        $userSubscription = $user->subscription;
+
+        if (!$userSubscription || !$userSubscription->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active subscription found'
+            ], 400);
+        }
+
+        $currentPlan = $userSubscription->subscriptionPlan;
+        
+        // Get plans with higher price and higher ad_limit
+        $upgradePlans = SubscriptionPlan::where('status', 'active')
+            ->where('price', '>', $currentPlan->price)
+            ->where('ad_limit', '>', $currentPlan->ad_limit)
+            ->where('id', '<>', $currentPlan->id)
+            ->orderBy('price', 'asc')
+            ->get([
+                'id',
+                'name_en',
+                'name_ar',
+                'slug',
+                'description_en',
+                'description_ar',
+                'price',
+                'months_count',
+                'is_lifetime',
+                'readable_billing_cycle',
+                'ad_limit',
+                'featured_ads',
+                'featured_ads_count',
+                'has_unlimited_featured_ads',
+                'priority_support',
+                'analytics',
+                'status'
+            ]);
+
+        // Generate readable billing cycle for plans that don't have it
+        $upgradePlans->each(function ($plan) {
+            if (empty($plan->readable_billing_cycle)) {
+                $plan->readable_billing_cycle = $plan->generateReadableBillingCycle();
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $upgradePlans,
+            'current_plan' => [
+                'id' => $currentPlan->id,
+                'name_en' => $currentPlan->name_en,
+                'name_ar' => $currentPlan->name_ar,
+                'slug' => $currentPlan->slug,
+                'description_en' => $currentPlan->description_en,
+                'description_ar' => $currentPlan->description_ar,
+                'price' => $currentPlan->price,
+                'months_count' => $currentPlan->months_count,
+                'is_lifetime' => $currentPlan->is_lifetime,
+                'readable_billing_cycle' => $currentPlan->readable_billing_cycle ?: $currentPlan->generateReadableBillingCycle(),
+                'ad_limit' => $currentPlan->ad_limit,
+                'featured_ads' => $currentPlan->featured_ads,
+                'featured_ads_count' => $currentPlan->featured_ads_count,
+                'has_unlimited_featured_ads' => $currentPlan->has_unlimited_featured_ads,
+                'priority_support' => $currentPlan->priority_support,
+                'analytics' => $currentPlan->analytics,
+                'status' => $currentPlan->status
+            ]
+        ]);
+    }
+
+    /**
      * Get subscription plans
      */
     public function subscriptionPlans()
     {
         $plans = SubscriptionPlan::where('status', 'active')
             ->orderBy('price')
-            ->get(['id', 'name_en', 'name_ar', 'price', 'months_count', 'is_lifetime']);
+            ->get([
+                'id',
+                'name_en',
+                'name_ar',
+                'slug',
+                'description_en',
+                'description_ar',
+                'price',
+                'months_count',
+                'is_lifetime',
+                'readable_billing_cycle',
+                'ad_limit',
+                'featured_ads',
+                'featured_ads_count',
+                'has_unlimited_featured_ads',
+                'priority_support',
+                'analytics',
+                'status'
+            ]);
+
+        // Generate readable billing cycle for plans that don't have it
+        $plans->each(function ($plan) {
+            if (empty($plan->readable_billing_cycle)) {
+                $plan->readable_billing_cycle = $plan->generateReadableBillingCycle();
+            }
+        });
 
         return response()->json([
             'success' => true,
@@ -645,6 +770,12 @@ class ProductApiController extends Controller
 
         // Calculate ad limit increase
         $adLimitIncrease = $newPlan->ad_limit - $currentSubscription->plan->ad_limit;
+        
+        // Calculate ads already used this month
+        $adsUsedThisMonth = $currentSubscription->plan->ad_limit - $currentSubscription->usable_ad_for_this_month;
+        
+        // Calculate new allowance: new plan's ad limit minus ads already used
+        $newAllowance = $newPlan->ad_limit - $adsUsedThisMonth;
 
         // Create transaction record
         $transaction = Transaction::create([
@@ -662,6 +793,8 @@ class ProductApiController extends Controller
                 'original_plan_price' => $currentSubscription->plan->price,
                 'new_plan_price' => $newPlan->price,
                 'ad_limit_increase' => $adLimitIncrease,
+                'ads_used_this_month' => $adsUsedThisMonth,
+                'new_allowance' => $newAllowance,
                 'subscription_type' => $newPlan->is_lifetime ? 'lifetime' : 'monthly',
                 'months_count' => $newPlan->months_count,
             ],
@@ -678,7 +811,7 @@ class ProductApiController extends Controller
             'expires_at' => $expiresAt,
             'amount_paid' => $upgradeCost,
             'payment_method' => 'manual',
-            'usable_ad_for_this_month' => $currentSubscription->usable_ad_for_this_month + $adLimitIncrease,
+            'usable_ad_for_this_month' => $newAllowance,
         ]);
 
         return response()->json([
@@ -689,7 +822,8 @@ class ProductApiController extends Controller
                 'subscription_plan' => $newPlan,
                 'transaction' => $transaction,
                 'ad_limit_increase' => $adLimitIncrease,
-                'new_allowance' => $currentSubscription->usable_ad_for_this_month + $adLimitIncrease,
+                'ads_used_this_month' => $adsUsedThisMonth,
+                'new_allowance' => $newAllowance,
             ],
         ]);
     }

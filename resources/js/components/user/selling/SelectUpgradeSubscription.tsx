@@ -6,50 +6,62 @@ import { Badge } from "@/components/user/ui/badge";
 import { Check, Star, Crown, Zap } from "lucide-react";
 
 interface SelectUpgradeSubscriptionProps {
-  currentSubscription: {
-    id: number;
-    plan: {
-      id: number;
-      name_en: string;
-      name_ar: string;
-      price: number;
-    };
-    expires_at: string;
-  };
-  onPlanSelect: (planId: number) => void;
-  selectedPlanId?: number;
+  formData: any;
+  updateFormData: (data: any) => void;
 }
 
 interface SubscriptionPlan {
   id: number;
   name_en: string;
   name_ar: string;
+  slug: string;
+  description_en?: string;
+  description_ar?: string;
   price: number;
   months_count: number;
   is_lifetime: boolean;
+  readable_billing_cycle?: string;
+  ad_limit: number;
+  featured_ads?: number;
+  featured_ads_count?: number;
+  has_unlimited_featured_ads?: boolean;
+  priority_support?: boolean;
+  analytics?: boolean;
+  status: string;
   discounted_price?: number;
   original_price?: number;
   discount_amount?: number;
-  features_en?: string;
-  features_ar?: string;
   is_current_lifetime?: boolean;
 }
 
 export const SelectUpgradeSubscription = ({ 
-  currentSubscription, 
-  onPlanSelect, 
-  selectedPlanId 
+  formData, 
+  updateFormData 
 }: SelectUpgradeSubscriptionProps) => {
   const { language, t } = useLanguage();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('SelectUpgradeSubscription');
     const loadUpgradePlans = async () => {
       try {
-        const response = await fetch(`/api/user/subscription-plans/upgrade?current_plan_id=${currentSubscription.plan.id}`);
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const response = await fetch('/api/user/subscription-plans/upgrade-options', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
         const data = await response.json();
-        setPlans(data.data || data);
+        
+        if (data.success) {
+          setPlans(data.data || []);
+          setCurrentPlan(data.current_plan);
+        }
       } catch (error) {
         console.error('Error loading upgrade plans:', error);
       } finally {
@@ -58,10 +70,10 @@ export const SelectUpgradeSubscription = ({
     };
 
     loadUpgradePlans();
-  }, [currentSubscription.plan.id]);
+  }, []);
 
   const handlePlanSelect = (planId: number) => {
-    onPlanSelect(planId);
+    updateFormData({ subscription_plan_id: planId });
   };
 
   const getPlanName = (plan: SubscriptionPlan) => {
@@ -69,65 +81,80 @@ export const SelectUpgradeSubscription = ({
   };
 
   const getPlanFeatures = (plan: SubscriptionPlan) => {
-    // Default features based on plan type
-    const defaultFeatures = {
-      free: {
-        en: [
-          'Up to 5 images',
-          'Basic listing',
-          '7 days visibility',
-          'Standard support'
-        ],
-        ar: [
-          'حتى 5 صور',
-          'إعلان أساسي',
-          'ظهور لمدة 7 أيام',
-          'دعم قياسي'
-        ]
-      },
-      silver: {
-        en: [
-          'Up to 10 images',
-          'Featured listing',
-          '14 days visibility',
-          'Priority support',
-          'Analytics dashboard'
-        ],
-        ar: [
-          'حتى 10 صور',
-          'إعلان مميز',
-          'ظهور لمدة 14 يوم',
-          'دعم أولوي',
-          'لوحة تحليلات'
-        ]
-      },
-      gold: {
-        en: [
-          'Unlimited images',
-          'Premium listing',
-          '30 days visibility',
-          '24/7 support',
-          'Advanced analytics',
-          'Featured placement'
-        ],
-        ar: [
-          'صور غير محدودة',
-          'إعلان مميز',
-          'ظهور لمدة 30 يوم',
-          'دعم 24/7',
-          'تحليلات متقدمة',
-          'موضع مميز'
-        ]
+    const features: string[] = [];
+    
+    // Add ad limit feature
+    if (plan.ad_limit > 0) {
+      if (language === 'ar') {
+        features.push(`${plan.ad_limit} إعلان شهرياً`);
+      } else {
+        features.push(`${plan.ad_limit} ads per month`);
       }
-    };
-
-    const planName = getPlanName(plan).toLowerCase();
-    let planType = 'free';
+    }
     
-    if (planName.includes('silver') || planName.includes('فضي')) planType = 'silver';
-    if (planName.includes('gold') || planName.includes('ذهبي')) planType = 'gold';
+    // Add featured ads feature
+    if (plan.has_unlimited_featured_ads) {
+      if (language === 'ar') {
+        features.push('إعلانات مميزة غير محدودة');
+      } else {
+        features.push('Unlimited featured ads');
+      }
+    } else if (plan.featured_ads_count && plan.featured_ads_count > 0) {
+      if (language === 'ar') {
+        features.push(`${plan.featured_ads_count} إعلان مميز`);
+      } else {
+        features.push(`${plan.featured_ads_count} featured ads`);
+      }
+    }
     
-    return defaultFeatures[planType as keyof typeof defaultFeatures][language as 'en' | 'ar'];
+    // Add priority support feature
+    if (plan.priority_support) {
+      if (language === 'ar') {
+        features.push('دعم أولوي');
+      } else {
+        features.push('Priority support');
+      }
+    }
+    
+    // Add analytics feature
+    if (plan.analytics) {
+      if (language === 'ar') {
+        features.push('تحليلات متقدمة');
+      } else {
+        features.push('Advanced analytics');
+      }
+    }
+    
+    // Add billing cycle feature
+    if (plan.readable_billing_cycle) {
+      if (language === 'ar') {
+        features.push(`دورة فوترة: ${plan.readable_billing_cycle}`);
+      } else {
+        features.push(`Billing: ${plan.readable_billing_cycle}`);
+      }
+    }
+    
+    // Add lifetime feature
+    if (plan.is_lifetime) {
+      if (language === 'ar') {
+        features.push('اشتراك مدى الحياة');
+      } else {
+        features.push('Lifetime subscription');
+      }
+    }
+    
+    // If no features found, add basic features based on ad limit
+    if (features.length === 0) {
+      if (language === 'ar') {
+        features.push('إعلانات أساسية');
+        features.push('دعم قياسي');
+      } else {
+        features.push('Basic listings');
+        features.push('Standard support');
+      }
+    }
+    
+    return features;
   };
 
   const getPlanIcon = (plan: SubscriptionPlan) => {
@@ -155,32 +182,36 @@ export const SelectUpgradeSubscription = ({
     <div className={`flex flex-col h-full ${language === 'ar' ? 'rtl' : 'ltr'}`}>
       <div className="flex-1 space-y-6">
         {/* Current Plan Info */}
-        <div className="bg-muted/50 rounded-lg p-4 mb-6">
-          <h3 className={`text-lg font-semibold mb-2 ${language === 'ar' ? 'font-arabic' : ''}`}>
-            {language === 'ar' ? 'خطة الاشتراك الحالية' : 'Current Subscription Plan'}
-          </h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`font-medium ${language === 'ar' ? 'font-arabic' : ''}`}>
-                {language === 'ar' ? currentSubscription.plan.name_ar : currentSubscription.plan.name_en}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {currentSubscription.plan.is_lifetime 
-                  ? (language === 'ar' ? 'مدى الحياة' : 'Lifetime')
-                  : `${language === 'ar' ? 'ينتهي في' : 'Expires on'} ${new Date(currentSubscription.expires_at).toLocaleDateString()}`
-                }
-              </p>
+        {currentPlan && (
+          <div className="bg-muted/50 rounded-lg p-4 mb-6">
+            <h3 className={`text-lg font-semibold mb-3 ${language === 'ar' ? 'font-arabic' : ''}`}>
+              {language === 'ar' ? 'خطة الاشتراك الحالية' : 'Current Subscription Plan'}
+            </h3>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className={`font-medium text-lg ${language === 'ar' ? 'font-arabic' : ''}`}>
+                  {language === 'ar' ? currentPlan.name_ar : currentPlan.name_en}
+                </p>
+                <div className="flex items-center gap-4 mt-2">
+                  <p className={`text-sm text-muted-foreground ${language === 'ar' ? 'font-arabic' : ''}`}>
+                    {language === 'ar' ? `${currentPlan.ad_limit} إعلان شهرياً` : `${currentPlan.ad_limit} ads per month`}
+                  </p>
+                  <p className={`text-sm font-medium ${language === 'ar' ? 'font-arabic' : ''}`}>
+                    KD {currentPlan.price}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="ml-4">
+                {language === 'ar' ? 'نشط' : 'Active'}
+              </Badge>
             </div>
-            <Badge variant="outline">
-              {language === 'ar' ? 'نشط' : 'Active'}
-            </Badge>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {plans.map((plan) => {
           const IconComponent = getPlanIcon(plan);
-          const isSelected = selectedPlanId === plan.id;
+          const isSelected = formData.subscription_plan_id === plan.id;
           const features = getPlanFeatures(plan);
           
           return (
@@ -198,6 +229,13 @@ export const SelectUpgradeSubscription = ({
                   <h4 className={`text-lg font-semibold mb-1 ${language === 'ar' ? 'font-arabic' : ''}`}>
                     {getPlanName(plan)}
                   </h4>
+                  
+                  {/* Plan Description */}
+                  {(plan.description_en || plan.description_ar) && (
+                    <p className={`text-sm text-muted-foreground mb-3 ${language === 'ar' ? 'font-arabic' : ''}`}>
+                      {language === 'ar' ? plan.description_ar : plan.description_en}
+                    </p>
+                  )}
                   
                   <div className="flex items-center justify-center gap-2 mb-2">
                     {plan.is_current_lifetime ? (
