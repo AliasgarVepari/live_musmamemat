@@ -5,9 +5,9 @@ import { Input } from '@/components/admin/ui/input';
 import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link as InertiaLink, router } from '@inertiajs/react';
+import { Head, Link as InertiaLink, router, usePage } from '@inertiajs/react';
 import { Edit, MapPin, Plus, Search, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -53,6 +53,19 @@ export default function GovernoratesIndex({ governorates, filters }: Governorate
         onConfirm: () => {}
     });
 
+    const { url } = usePage();
+
+    // Refetch data when navigating back from detail pages
+    useEffect(() => {
+        const shouldRefresh = localStorage.getItem('admin-governorates-refresh');
+        if (shouldRefresh === 'true') {
+            localStorage.removeItem('admin-governorates-refresh');
+            setTimeout(() => {
+                router.reload({ only: ['governorates'] });
+            }, 100);
+        }
+    }, [url]);
+
     const handleDelete = (id: number) => {
         setConfirmationDialog({
             open: true,
@@ -60,6 +73,9 @@ export default function GovernoratesIndex({ governorates, filters }: Governorate
             description: 'Are you sure you want to delete this governorate? This action cannot be undone.',
             onConfirm: () => {
                 router.delete(`/admin/governorates/${id}`, {
+                    onSuccess: () => {
+                        localStorage.setItem('admin-governorates-refresh', 'true');
+                    },
                     preserveScroll: true,
                     onError: (errors) => {
                         // Show error dialog for delete errors
@@ -123,6 +139,9 @@ export default function GovernoratesIndex({ governorates, filters }: Governorate
             `/admin/governorates/${id}/toggle`,
             {},
             {
+                onSuccess: () => {
+                    localStorage.setItem('admin-governorates-refresh', 'true');
+                },
                 preserveState: true,
                 preserveScroll: true,
             },

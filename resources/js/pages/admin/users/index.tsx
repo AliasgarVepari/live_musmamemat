@@ -5,10 +5,11 @@ import { Input } from '@/components/admin/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
 import { SuspensionDialog } from '@/components/admin/ui/suspension-dialog';
 import { useCachedPagination } from '@/hooks/admin/use-cached-pagination';
+import { Textarea } from '@/components/admin/ui/textarea';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link as InertiaLink, router } from '@inertiajs/react';
+import { Head, Link as InertiaLink, router, usePage, useForm } from '@inertiajs/react';
 import { Eye, Filter, Search, Shield, ShieldCheck, ShieldX, Trash2, User, UserCheck, UserX, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -76,8 +77,20 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
     const [showSuspensionDialog, setShowSuspensionDialog] = useState(false);
     const [suspendingUser, setSuspendingUser] = useState<User | null>(null);
     const [isSuspending, setIsSuspending] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletingUser, setDeletingUser] = useState<User | null>(null);
     
     useErrorHandler();
+    const { url } = usePage();
+
+    const {
+        data: deleteData,
+        setData: setDeleteData,
+        delete: deleteUser,
+        processing: deleteProcessing,
+    } = useForm({
+        deletion_reason: '',
+    });
 
     // Use cached pagination hook
     const {
@@ -100,6 +113,19 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
             governorate_id: filters.governorate_id || 'all',
         },
     });
+
+    // Refetch data when navigating back from detail pages
+    useEffect(() => {
+        // Check if we're coming from a user detail page
+        const shouldRefresh = localStorage.getItem('admin-users-refresh');
+        if (shouldRefresh === 'true') {
+            // Clear the flag and refetch the data
+            localStorage.removeItem('admin-users-refresh');
+            setTimeout(() => {
+                refetchListing();
+            }, 100); // Small delay to ensure the page is fully loaded
+        }
+    }, [url, refetchListing]);
 
     // Use cached data if available, otherwise fall back to props
     const usersData = cachedUsers || users;
@@ -168,21 +194,30 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
         );
     };
 
-    const handleDelete = (userId: number) => {
-        const reason = prompt('Please provide a reason for deleting this user account:');
-        if (reason && reason.trim()) {
-            router.delete(`/admin/users/${userId}`, {
-                data: { deletion_reason: reason },
-                onSuccess: () => {
-                    refetchListing();
-                },
-                onError: (errors) => {
-                    const errorMessages = Object.values(errors).flat();
-                    const errorMessage = errorMessages.join(', ');
-                    alert(`Error: ${errorMessage}`);
-                },
-            });
-        }
+    const handleDelete = (user: User) => {
+        setDeletingUser(user);
+        setShowDeleteModal(true);
+    };
+
+    const handleDeleteUser = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!deletingUser) return;
+        
+        deleteUser(`/admin/users/${deletingUser.id}`, {
+            onSuccess: () => {
+                setShowDeleteModal(false);
+                setDeletingUser(null);
+                setDeleteData('deletion_reason', '');
+                // Mark for refresh when navigating back
+                localStorage.setItem('admin-users-refresh', 'true');
+                refetchListing();
+            },
+            onError: (errors) => {
+                const errorMessages = Object.values(errors).flat();
+                const errorMessage = errorMessages.join(', ');
+                alert(`Error: ${errorMessage}`);
+            },
+        });
     };
 
     const getStatusBadge = (userStatus: string) => {
@@ -383,17 +418,21 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                                         <Eye className="h-4 w-4" />
                                                     </InertiaLink>
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(user)}>
-                                                    {user.status === 'active' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleDelete(user.id)}
-                                                    className="text-destructive hover:text-destructive"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {user.status !== 'deleted' && (
+                                                    <>
+                                                        <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(user)}>
+                                                            {user.status === 'active' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleDelete(user)}
+                                                            className="text-destructive hover:text-destructive"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -532,6 +571,54 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                 userName={suspendingUser?.name_en || ''}
                 isSuspending={isSuspending}
             />
+            
+            {/* Delete User Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <Card className="w-full max-w-md">
+                        <CardHeader>
+                            <CardTitle>Delete User Account</CardTitle>
+                            <CardDescription>
+                                This will permanently delete {deletingUser?.name_en}'s account
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleDeleteUser} className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Reason for deletion</label>
+                                    <Textarea
+                                        id="deletion_reason"
+                                        value={deleteData.deletion_reason}
+                                        onChange={(e) => setDeleteData('deletion_reason', e.target.value)}
+                                        placeholder="Provide reason for deleting account"
+                                        required
+                                    />
+                                </div>
+                                <div className="flex justify-end space-x-2">
+                                    <Button 
+                                        type="button" 
+                                        variant="outline" 
+                                        onClick={() => {
+                                            setShowDeleteModal(false);
+                                            setDeletingUser(null);
+                                            setDeleteData('deletion_reason', '');
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button 
+                                        type="submit" 
+                                        variant="destructive" 
+                                        disabled={deleteProcessing || !deleteData.deletion_reason.trim()}
+                                    >
+                                        {deleteProcessing ? 'Deleting...' : 'Delete Account'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </AppLayout>
     );
 }

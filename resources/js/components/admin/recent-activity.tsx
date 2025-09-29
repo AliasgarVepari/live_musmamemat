@@ -75,10 +75,10 @@ export function RecentActivity({ ads, users }: RecentActivityProps) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-lg font-semibold">Recent Ads</CardTitle>
-                    <Button variant="outline" size="sm">
+                    {/* <Button variant="outline" size="sm">
                         View All
                         <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    </Button> */}
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[400px]">
@@ -124,10 +124,10 @@ export function RecentActivity({ ads, users }: RecentActivityProps) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-lg font-semibold">Recent Users</CardTitle>
-                    <Button variant="outline" size="sm">
+                    {/* <Button variant="outline" size="sm">
                         View All
                         <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    </Button> */}
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[400px]">

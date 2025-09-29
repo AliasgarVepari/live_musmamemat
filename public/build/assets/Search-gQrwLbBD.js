@@ -1,0 +1,10 @@
+import{r as n,j as c}from"./app-BFw6crce.js";import{H as S,F as x}from"./Header-Cn4Auj03.js";import{a as d,b as R}from"./index-7Jp_tywM.js";import"./index-D0M1C5f8.js";import"./index-DLMo7saC.js";import"./useQuery-CBEH6dxz.js";import"./phone-DwoqXRvE.js";import"./index-Bcto63S6.js";import"./index-soQM3lwP.js";import"./index-qoaRRGKk.js";import"./check-DCM6S95B.js";import"./loader-circle-BiWTompM.js";import"./search-CfB6Wjny.js";import"./user-Bvhp2jeH.js";/**
+ * React Router DOM v6.30.1
+ *
+ * Copyright (c) Remix Software Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.md file in the root directory of this source tree.
+ *
+ * @license MIT
+ */function u(e){return e===void 0&&(e=""),new URLSearchParams(typeof e=="string"||Array.isArray(e)||e instanceof URLSearchParams?e:Object.keys(e).reduce((s,r)=>{let t=e[r];return s.concat(Array.isArray(t)?t.map(a=>[r,a]):[[r,t]])},[]))}function b(e,s){let r=u(e);return s&&s.forEach((t,a)=>{r.has(a)||s.getAll(a).forEach(o=>{r.append(a,o)})}),r}const g="6";try{window.__reactRouterVersion=g}catch{}var i;(function(e){e.UseScrollRestoration="useScrollRestoration",e.UseSubmit="useSubmit",e.UseSubmitFetcher="useSubmitFetcher",e.UseFetcher="useFetcher",e.useViewTransitionState="useViewTransitionState"})(i||(i={}));var l;(function(e){e.UseFetcher="useFetcher",e.UseFetchers="useFetchers",e.UseScrollRestoration="useScrollRestoration"})(l||(l={}));function F(e){let s=n.useRef(u(e)),r=n.useRef(!1),t=d(),a=n.useMemo(()=>b(t.search,r.current?null:s.current),[t.search]),o=R(),h=n.useCallback((m,p)=>{const f=u(typeof m=="function"?m(a):m);r.current=!0,o("?"+f,p)},[o,a]);return[a,h]}const q=()=>{const[e]=F(),s=e.get("q")||"";return c.jsxs("div",{className:"bg-background min-h-screen",children:[c.jsx(S,{}),c.jsx("main",{className:"py-16",children:c.jsxs("div",{className:"mx-auto max-w-7xl px-4 sm:px-6 lg:px-8",children:[c.jsx("h1",{className:"text-luxury-black mb-8 text-3xl font-bold",children:"Search Results"}),c.jsxs("p",{className:"text-muted-foreground",children:['Search results for: "',s,'" - coming soon']})]})}),c.jsx(x,{})]})};export{q as default};

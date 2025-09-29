@@ -5,9 +5,9 @@ import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
 import { Input } from '@/components/admin/ui/input';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link as InertiaLink, router } from '@inertiajs/react';
+import { Head, Link as InertiaLink, router, usePage } from '@inertiajs/react';
 import { Edit, Plus, Search, Tag, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -53,6 +53,19 @@ export default function CategoriesIndex({ categories, filters }: CategoriesIndex
         description: '',
         onConfirm: () => {}
     });
+
+    const { url } = usePage();
+
+    // Refetch data when navigating back from detail pages
+    useEffect(() => {
+        const shouldRefresh = localStorage.getItem('admin-categories-refresh');
+        if (shouldRefresh === 'true') {
+            localStorage.removeItem('admin-categories-refresh');
+            setTimeout(() => {
+                router.reload({ only: ['categories'] });
+            }, 100);
+        }
+    }, [url]);
     
     // Function to show error dialog
     const showErrorDialog = (title: string, message: string) => {
@@ -142,6 +155,9 @@ export default function CategoriesIndex({ categories, filters }: CategoriesIndex
             `/admin/categories/${id}/toggle`,
             {},
             {
+                onSuccess: () => {
+                    localStorage.setItem('admin-categories-refresh', 'true');
+                },
                 preserveState: true,
             },
         );
@@ -153,6 +169,9 @@ export default function CategoriesIndex({ categories, filters }: CategoriesIndex
             description: 'Are you sure you want to delete this category? This action cannot be undone.',
             onConfirm: () => {
                 router.delete(`/admin/categories/${id}`, {
+                    onSuccess: () => {
+                        localStorage.setItem('admin-categories-refresh', 'true');
+                    },
                     preserveScroll: true,
                     onError: (errors) => {
                         // Show error dialog for delete errors

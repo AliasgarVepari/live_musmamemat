@@ -10,7 +10,7 @@ import { useCachedPagination } from '@/hooks/admin/use-cached-pagination';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     Calendar,
@@ -190,6 +190,19 @@ export default function AdsIndex({ ads, categories, governorates, priceTypes, co
             max_price: filters.max_price || '',
         },
     });
+
+    const { url } = usePage();
+
+    // Refetch data when navigating back from detail pages
+    useEffect(() => {
+        const shouldRefresh = localStorage.getItem('admin-ads-refresh');
+        if (shouldRefresh === 'true') {
+            localStorage.removeItem('admin-ads-refresh');
+            setTimeout(() => {
+                refetchListing();
+            }, 100);
+        }
+    }, [url, refetchListing]);
 
     // Use cached data if available, otherwise fall back to props
     const adsData = cachedAds || ads;

@@ -6,7 +6,7 @@ import { Label } from '@/components/admin/ui/label';
 import { Switch } from '@/components/admin/ui/switch';
 import InputError from '@/components/admin/input-error';
 import { ArrowLeft, MapPin, Save } from 'lucide-react';
-import { Link as InertiaLink, useForm } from '@inertiajs/react';
+import { Link as InertiaLink, useForm, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
 
@@ -47,7 +47,11 @@ export default function EditGovernorate({ governorate }: EditGovernorateProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(`/admin/governorates/${governorate.id}`);
+        put(`/admin/governorates/${governorate.id}`, {
+            onSuccess: () => {
+                localStorage.setItem('admin-governorates-refresh', 'true');
+            },
+        });
     };
 
     return (
@@ -57,12 +61,21 @@ export default function EditGovernorate({ governorate }: EditGovernorateProps) {
                 <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
                     {/* Header */}
                     <div className="flex items-center space-x-4">
-                        <InertiaLink href="/admin/governorates">
-                            <Button variant="ghost" size="sm">
-                                <ArrowLeft className="h-4 w-4 mr-2" />
-                                Back
-                            </Button>
-                        </InertiaLink>
+                        <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                                localStorage.setItem('admin-governorates-refresh', 'true');
+                                router.visit('/admin/governorates', { 
+                                    method: 'get',
+                                    preserveState: false,
+                                    preserveScroll: false
+                                });
+                            }}
+                        >
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Back
+                        </Button>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Edit Governorate</h1>
                             <p className="text-muted-foreground">

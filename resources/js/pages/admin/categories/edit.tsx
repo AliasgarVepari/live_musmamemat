@@ -130,6 +130,7 @@ export default function EditCategory({ category }: EditCategoryProps) {
                 onSuccess: () => {
                     reset();
                     setIconFile(null);
+                    localStorage.setItem('admin-categories-refresh', 'true');
                 },
                 onError: (errors) => {
                     // Show error dialog for validation errors
@@ -149,10 +150,19 @@ export default function EditCategory({ category }: EditCategoryProps) {
                 <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
                     {/* Header */}
                     <div className="flex items-center space-x-4">
-                        <Button variant="ghost" size="sm" asChild>
-                            <InertiaLink href="/admin/categories">
-                                <ArrowLeft className="h-4 w-4" />
-                            </InertiaLink>
+                        <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                                localStorage.setItem('admin-categories-refresh', 'true');
+                                router.visit('/admin/categories', { 
+                                    method: 'get',
+                                    preserveState: false,
+                                    preserveScroll: false
+                                });
+                            }}
+                        >
+                            <ArrowLeft className="h-4 w-4" />
                         </Button>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Edit Category</h1>

@@ -47,7 +47,11 @@ export default function EditPriceType({ priceType }: EditPriceTypeProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(`/admin/price-types/${priceType.id}`);
+        put(`/admin/price-types/${priceType.id}`, {
+            onSuccess: () => {
+                localStorage.setItem('admin-price-types-refresh', 'true');
+            },
+        });
     };
 
     return (
@@ -57,12 +61,21 @@ export default function EditPriceType({ priceType }: EditPriceTypeProps) {
                 <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
                     {/* Header */}
                     <div className="flex items-center space-x-4">
-                        <InertiaLink href="/admin/price-types">
-                            <Button variant="ghost" size="sm">
-                                <ArrowLeft className="h-4 w-4 mr-2" />
-                                Back
-                            </Button>
-                        </InertiaLink>
+                        <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                                localStorage.setItem('admin-price-types-refresh', 'true');
+                                router.visit('/admin/price-types', { 
+                                    method: 'get',
+                                    preserveState: false,
+                                    preserveScroll: false
+                                });
+                            }}
+                        >
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Back
+                        </Button>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Edit Price Type</h1>
                             <p className="text-muted-foreground">

@@ -217,6 +217,9 @@ export default function ShowAd({ ad }: ShowAdProps) {
 
     const handleApprove = () => {
         router.patch(`/admin/ads/${ad.id}/approve`, {}, {
+            onSuccess: () => {
+                localStorage.setItem('admin-ads-refresh', 'true');
+            },
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
                 const errorMessage = errorMessages.join(', ');
@@ -244,6 +247,7 @@ export default function ShowAd({ ad }: ShowAdProps) {
                 setIsRejectDialogOpen(false);
                 setRejectReason('');
                 setRejectingAd(null);
+                localStorage.setItem('admin-ads-refresh', 'true');
             },
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
@@ -256,6 +260,9 @@ export default function ShowAd({ ad }: ShowAdProps) {
 
     const handleMarkAsSold = () => {
         router.patch(`/admin/ads/${ad.id}/mark-sold`, {}, {
+            onSuccess: () => {
+                localStorage.setItem('admin-ads-refresh', 'true');
+            },
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
                 const errorMessage = errorMessages.join(', ');
@@ -267,6 +274,9 @@ export default function ShowAd({ ad }: ShowAdProps) {
 
     const handleMarkAsExpired = () => {
         router.patch(`/admin/ads/${ad.id}/mark-expired`, {}, {
+            onSuccess: () => {
+                localStorage.setItem('admin-ads-refresh', 'true');
+            },
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
                 const errorMessage = errorMessages.join(', ');
@@ -294,6 +304,7 @@ export default function ShowAd({ ad }: ShowAdProps) {
                 setIsInactiveDialogOpen(false);
                 setInactiveReason('');
                 setInactivatingAd(null);
+                localStorage.setItem('admin-ads-refresh', 'true');
             },
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
@@ -321,6 +332,7 @@ export default function ShowAd({ ad }: ShowAdProps) {
             onSuccess: () => {
                 setIsDeleteDialogOpen(false);
                 setInactiveReason('');
+                localStorage.setItem('admin-ads-refresh', 'true');
                 router.visit('/admin/ads');
             },
             onError: (errors) => {
@@ -357,7 +369,18 @@ export default function ShowAd({ ad }: ShowAdProps) {
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                    localStorage.setItem('admin-ads-refresh', 'true');
+                                    router.visit('/admin/ads', { 
+                                        method: 'get',
+                                        preserveState: false,
+                                        preserveScroll: false
+                                    });
+                                }}
+                            >
                                 <ArrowLeft className="h-4 w-4" />
                             </Button>
                             <div>
@@ -385,7 +408,7 @@ export default function ShowAd({ ad }: ShowAdProps) {
                                         Delete
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="bg-white">
                                     <DialogHeader>
                                         <DialogTitle>Delete Ad</DialogTitle>
                                         <DialogDescription>
@@ -731,7 +754,7 @@ export default function ShowAd({ ad }: ShowAdProps) {
 
                 {/* Rejection Reason Dialog */}
                 <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-                    <DialogContent>
+                    <DialogContent className="bg-white">
                         <DialogHeader>
                             <DialogTitle>Reject Ad</DialogTitle>
                             <DialogDescription>
@@ -762,7 +785,7 @@ export default function ShowAd({ ad }: ShowAdProps) {
 
                 {/* Inactive Reason Dialog */}
                 <Dialog open={isInactiveDialogOpen} onOpenChange={setIsInactiveDialogOpen}>
-                    <DialogContent>
+                    <DialogContent className="bg-white">
                         <DialogHeader>
                             <DialogTitle>Mark as Inactive</DialogTitle>
                             <DialogDescription>

@@ -6,9 +6,9 @@ import { Input } from '@/components/admin/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link as InertiaLink, router } from '@inertiajs/react';
+import { Head, Link as InertiaLink, router, usePage } from '@inertiajs/react';
 import { Edit, ExternalLink, Link, Plus, Search, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -53,6 +53,19 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
         description: '',
         onConfirm: () => {}
     });
+
+    const { url } = usePage();
+
+    // Refetch data when navigating back from detail pages
+    useEffect(() => {
+        const shouldRefresh = localStorage.getItem('admin-social-links-refresh');
+        if (shouldRefresh === 'true') {
+            localStorage.removeItem('admin-social-links-refresh');
+            setTimeout(() => {
+                router.reload({ only: ['socialLinks'] });
+            }, 100);
+        }
+    }, [url]);
 
     // Function to show error dialog
     const showErrorDialog = (title: string, message: string) => {
@@ -105,6 +118,9 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
             `/admin/social-links/${id}/toggle`,
             {},
             {
+                onSuccess: () => {
+                    localStorage.setItem('admin-social-links-refresh', 'true');
+                },
                 preserveState: true,
                 preserveScroll: true,
             },
@@ -118,6 +134,9 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
             description: 'Are you sure you want to delete this social link?',
             onConfirm: () => {
                 router.delete(`/admin/social-links/${id}`, {
+                    onSuccess: () => {
+                        localStorage.setItem('admin-social-links-refresh', 'true');
+                    },
                     preserveScroll: true,
                     onError: (errors) => {
                         const errorMessages = Object.values(errors).flat();

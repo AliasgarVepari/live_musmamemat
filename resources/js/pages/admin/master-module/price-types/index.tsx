@@ -12,7 +12,7 @@ import {
     ToggleLeft, 
     ToggleRight
 } from 'lucide-react';
-import { Link as InertiaLink, router } from '@inertiajs/react';
+import { Link as InertiaLink, router, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -67,6 +67,19 @@ export default function PriceTypesIndex({ priceTypes, filters }: PriceTypesIndex
         onConfirm: () => {}
     });
 
+    const { url } = usePage();
+
+    // Refetch data when navigating back from detail pages
+    useEffect(() => {
+        const shouldRefresh = localStorage.getItem('admin-price-types-refresh');
+        if (shouldRefresh === 'true') {
+            localStorage.removeItem('admin-price-types-refresh');
+            setTimeout(() => {
+                router.reload({ only: ['priceTypes'] });
+            }, 100);
+        }
+    }, [url]);
+
     const showErrorDialog = (title: string, message: string) => {
         // Check if dialog already exists
         const existingDialog = document.querySelector('.error-dialog-overlay');
@@ -114,6 +127,9 @@ export default function PriceTypesIndex({ priceTypes, filters }: PriceTypesIndex
 
     const handleToggle = (id: number) => {
         router.patch(`/admin/price-types/${id}/toggle`, {}, {
+            onSuccess: () => {
+                localStorage.setItem('admin-price-types-refresh', 'true');
+            },
             preserveState: true,
             onError: (errors) => {
                 setErrorDialog({
@@ -131,6 +147,9 @@ export default function PriceTypesIndex({ priceTypes, filters }: PriceTypesIndex
             description: 'Are you sure you want to delete this price type? This action cannot be undone.',
             onConfirm: () => {
                 router.delete(`/admin/price-types/${id}`, {
+                    onSuccess: () => {
+                        localStorage.setItem('admin-price-types-refresh', 'true');
+                    },
                     preserveScroll: true,
                     onError: (errors) => {
                         // Show error dialog for delete errors

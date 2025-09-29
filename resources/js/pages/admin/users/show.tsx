@@ -1,7 +1,6 @@
 import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
-import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
 import { ReactivationDialog } from '@/components/admin/ui/reactivation-dialog';
 import { SuspensionDialog } from '@/components/admin/ui/suspension-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/admin/ui/dialog';
@@ -160,12 +159,6 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
     const [rejectReason, setRejectReason] = useState('');
     const [inactiveReason, setInactiveReason] = useState('');
     const [deleteReason, setDeleteReason] = useState('');
-    const [confirmationDialog, setConfirmationDialog] = useState({
-        open: false,
-        title: '',
-        description: '',
-        onConfirm: () => {}
-    });
     useErrorHandler();
 
     const {
@@ -225,6 +218,10 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
                 `/admin/users/${user.id}/toggle`,
                 {},
                 {
+                    onSuccess: () => {
+                        // Mark for refresh when navigating back
+                        localStorage.setItem('admin-users-refresh', 'true');
+                    },
                     onError: (errors) => {
                         const errorMessages = Object.values(errors).flat();
                         const errorMessage = errorMessages.join(', ');
@@ -244,6 +241,8 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
                 onSuccess: () => {
                     setIsSuspending(false);
                     setShowSuspensionDialog(false);
+                    // Mark for refresh when navigating back
+                    localStorage.setItem('admin-users-refresh', 'true');
                 },
                 onError: (errors) => {
                     setIsSuspending(false);
@@ -289,7 +288,10 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
             {},
             {
                 onSuccess: () => {
-                    alert('User account reactivated successfully!');
+                    // Mark for refresh when navigating back
+                    localStorage.setItem('admin-users-refresh', 'true');
+                    // Success message will be handled by the backend redirect
+                    // No need for alert - the page will refresh with success message
                 },
                 onError: (errors) => {
                     const errorMessages = Object.values(errors).flat();
@@ -604,10 +606,20 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
-                            <Button variant="ghost" size="sm" asChild>
-                                <InertiaLink href="/admin/users">
-                                    <ArrowLeft className="h-4 w-4" />
-                                </InertiaLink>
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                    // Mark that we're navigating back from a detail page
+                                    localStorage.setItem('admin-users-refresh', 'true');
+                                    router.visit('/admin/users', { 
+                                        method: 'get',
+                                        preserveState: false,
+                                        preserveScroll: false
+                                    });
+                                }}
+                            >
+                                <ArrowLeft className="h-4 w-4" />
                             </Button>
                             <div>
                                 <h1 className="text-3xl font-bold tracking-tight">{user.name_en}</h1>
@@ -1206,16 +1218,6 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
                     </Dialog>
                 </div>
             </>
-            <ConfirmationDialog
-                open={confirmationDialog.open}
-                onOpenChange={(open) => setConfirmationDialog(prev => ({ ...prev, open }))}
-                title={confirmationDialog.title}
-                description={confirmationDialog.description}
-                onConfirm={confirmationDialog.onConfirm}
-                confirmText="Delete"
-                cancelText="Cancel"
-            />
-            
             <ReactivationDialog
                 open={showReactivationDialog}
                 onOpenChange={setShowReactivationDialog}

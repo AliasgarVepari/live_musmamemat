@@ -69,7 +69,7 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
                 const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
+                // alert(`Error: ${errorMessage}`);
             },
         });
     };
@@ -92,9 +92,13 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
                     setDeletingPlan(null);
                 },
                 onError: (errors) => {
+                    // Close the confirmation dialog first
+                    setIsDeleteDialogOpen(false);
+                    setDeletingPlan(null);
+                    
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
-                    alert(`Error: ${errorMessage}`);
+                    // alert(`Error: ${errorMessage}`);
                 },
             });
         }
@@ -213,7 +217,7 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </DialogTrigger>
-                                                    <DialogContent>
+                                                    <DialogContent className="bg-white">
                                                         <DialogHeader>
                                                             <DialogTitle>Delete Subscription Plan</DialogTitle>
                                                             <DialogDescription>

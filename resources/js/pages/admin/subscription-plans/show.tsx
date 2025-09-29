@@ -81,7 +81,7 @@ export default function ShowSubscriptionPlan({ plan }: ShowSubscriptionPlanProps
             onError: (errors) => {
                 const errorMessages = Object.values(errors).flat();
                 const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
+                // alert(`Error: ${errorMessage}`);
             },
         });
     };
@@ -92,9 +92,12 @@ export default function ShowSubscriptionPlan({ plan }: ShowSubscriptionPlanProps
                 setIsDeleteDialogOpen(false);
             },
             onError: (errors) => {
+                // Close the confirmation dialog first
+                setIsDeleteDialogOpen(false);
+                
                 const errorMessages = Object.values(errors).flat();
                 const errorMessage = errorMessages.join(', ');
-                alert(`Error: ${errorMessage}`);
+                // alert(`Error: ${errorMessage}`);
             },
         });
     };
@@ -160,7 +163,7 @@ export default function ShowSubscriptionPlan({ plan }: ShowSubscriptionPlanProps
                                         Delete
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="bg-white">
                                     <DialogHeader>
                                         <DialogTitle>Delete Subscription Plan</DialogTitle>
                                         <DialogDescription>

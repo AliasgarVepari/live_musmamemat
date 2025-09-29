@@ -13,8 +13,8 @@ import {
     ToggleRight,
     GripVertical
 } from 'lucide-react';
-import { Link as InertiaLink, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Link as InertiaLink, router, usePage } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
@@ -64,6 +64,19 @@ export default function ConditionsIndex({ conditions, filters }: ConditionsIndex
         onConfirm: () => {}
     });
 
+    const { url } = usePage();
+
+    // Refetch data when navigating back from detail pages
+    useEffect(() => {
+        const shouldRefresh = localStorage.getItem('admin-conditions-refresh');
+        if (shouldRefresh === 'true') {
+            localStorage.removeItem('admin-conditions-refresh');
+            setTimeout(() => {
+                router.reload({ only: ['conditions'] });
+            }, 100);
+        }
+    }, [url]);
+
     // Function to show error dialog
     const showErrorDialog = (title: string, message: string) => {
         // Check if dialog already exists
@@ -112,6 +125,9 @@ export default function ConditionsIndex({ conditions, filters }: ConditionsIndex
 
     const handleToggle = (id: number) => {
         router.patch(`/admin/conditions/${id}/toggle`, {}, {
+            onSuccess: () => {
+                localStorage.setItem('admin-conditions-refresh', 'true');
+            },
             preserveState: true,
         });
     };
@@ -123,6 +139,9 @@ export default function ConditionsIndex({ conditions, filters }: ConditionsIndex
             description: 'Are you sure you want to delete this condition?',
             onConfirm: () => {
                 router.delete(`/admin/conditions/${id}`, {
+                    onSuccess: () => {
+                        localStorage.setItem('admin-conditions-refresh', 'true');
+                    },
                     preserveScroll: true,
                     onError: (errors) => {
                         const errorMessages = Object.values(errors).flat();
