@@ -39,6 +39,7 @@ Route::prefix('admin')->group(function () {
         // Users Management
         Route::resource('users', App\Http\Controllers\Admin\UsersController::class);
         Route::patch('users/{user}/toggle', [App\Http\Controllers\Admin\UsersController::class, 'toggle'])->name('users.toggle');
+        Route::patch('users/{user}/suspend', [App\Http\Controllers\Admin\UsersController::class, 'suspend'])->name('users.suspend');
         Route::post('users/{user}/revoke-subscription', [App\Http\Controllers\Admin\UsersController::class, 'revokeSubscription'])->name('users.revoke-subscription');
         Route::post('users/{user}/reactivate', [App\Http\Controllers\Admin\UsersController::class, 'reactivate'])->name('users.reactivate');
         Route::get('users-stats', [App\Http\Controllers\Admin\UsersController::class, 'getStats'])->name('users.stats');

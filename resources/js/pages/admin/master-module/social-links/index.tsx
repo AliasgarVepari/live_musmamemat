@@ -1,6 +1,7 @@
 import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
 import { Input } from '@/components/admin/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
 import AppLayout from '@/layouts/admin/app-layout';
@@ -46,6 +47,12 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
     const [searchTerm, setSearchTerm] = useState('');
     const [platformFilter, setPlatformFilter] = useState(filters.platform || 'all');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
+    const [confirmationDialog, setConfirmationDialog] = useState({
+        open: false,
+        title: '',
+        description: '',
+        onConfirm: () => {}
+    });
 
     // Function to show error dialog
     const showErrorDialog = (title: string, message: string) => {
@@ -105,18 +112,21 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
     };
 
     const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to delete this social link?')) {
-            event?.preventDefault();
-            router.delete(`/admin/social-links/${id}`, {
-                preserveScroll: true,
-                onError: (errors) => {
-                    // Show error dialog for delete errors
-                    const errorMessages = Object.values(errors).flat();
-                    const errorMessage = errorMessages.join(', ');
-                    showErrorDialog('Cannot Delete Social Link', errorMessage);
-                },
-            });
-        }
+        setConfirmationDialog({
+            open: true,
+            title: 'Delete Social Link',
+            description: 'Are you sure you want to delete this social link?',
+            onConfirm: () => {
+                router.delete(`/admin/social-links/${id}`, {
+                    preserveScroll: true,
+                    onError: (errors) => {
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        showErrorDialog('Cannot Delete Social Link', errorMessage);
+                    },
+                });
+            }
+        });
     };
 
     const getPlatformIcon = (platform: string) => {
@@ -300,6 +310,19 @@ export default function SocialLinksIndex({ socialLinks, filters, platforms }: So
                     </Card>
                 </div>
             </>
+            <ConfirmationDialog
+                open={confirmationDialog.open}
+                onOpenChange={(open) => setConfirmationDialog(prev => ({ ...prev, open }))}
+                title={confirmationDialog.title}
+                description={confirmationDialog.description}
+                onConfirm={confirmationDialog.onConfirm}
+                confirmText="Delete"
+                cancelText="Cancel"
+            />
         </AppLayout>
     );
 }
+function setConfirmationDialog(arg0: { open: boolean; title: string; description: string; onConfirm: () => void; }) {
+    throw new Error('Function not implemented.');
+}
+

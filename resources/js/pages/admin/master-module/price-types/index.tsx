@@ -16,7 +16,7 @@ import { Link as InertiaLink, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { ErrorDialog } from '@/components/admin/ui/error-dialog';
+import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -60,6 +60,57 @@ export default function PriceTypesIndex({ priceTypes, filters }: PriceTypesIndex
         title: '',
         message: ''
     });
+    const [confirmationDialog, setConfirmationDialog] = useState({
+        open: false,
+        title: '',
+        description: '',
+        onConfirm: () => {}
+    });
+
+    const showErrorDialog = (title: string, message: string) => {
+        // Check if dialog already exists
+        const existingDialog = document.querySelector('.error-dialog-overlay');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+
+        // Create error dialog element
+        const dialog = document.createElement('div');
+        dialog.className = 'error-dialog-overlay';
+        dialog.innerHTML = `
+            <div class="error-dialog-content">
+                <div class="error-dialog-header">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="error-dialog-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                        </div>
+                        <div class="error-dialog-title">${title}</div>
+                    </div>
+                    <div class="error-dialog-message">${message}</div>
+                </div>
+                <div class="error-dialog-footer p-6 pt-0">
+                    <button 
+                        onclick="this.closest('.error-dialog-overlay').remove()"
+                        class="error-dialog-button"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Add to document
+        document.body.appendChild(dialog);
+
+        // Auto remove after 10 seconds
+        setTimeout(() => {
+            if (dialog.parentNode) {
+                dialog.parentNode.removeChild(dialog);
+            }
+        }, 10000);
+    };
 
     const handleToggle = (id: number) => {
         router.patch(`/admin/price-types/${id}/toggle`, {}, {
@@ -73,19 +124,23 @@ export default function PriceTypesIndex({ priceTypes, filters }: PriceTypesIndex
             },
         });
     };
-
     const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to delete this price type?')) {
-            router.delete(`/admin/price-types/${id}`, {
-                onError: (errors) => {
-                    setErrorDialog({
-                        open: true,
-                        title: "Cannot Delete Price Type",
-                        message: Object.values(errors).flat().join(', ')
-                    });
-                },
-            });
-        }
+        setConfirmationDialog({
+            open: true,
+            title: 'Delete Price Type',
+            description: 'Are you sure you want to delete this price type? This action cannot be undone.',
+            onConfirm: () => {
+                router.delete(`/admin/price-types/${id}`, {
+                    preserveScroll: true,
+                    onError: (errors) => {
+                        // Show error dialog for delete errors
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        showErrorDialog('Cannot Delete Price Type', errorMessage);
+                    },
+                });
+            }
+        });
     };
 
     const priceTypesData = priceTypes?.data || [];
@@ -241,12 +296,25 @@ export default function PriceTypesIndex({ priceTypes, filters }: PriceTypesIndex
                     </Card>
                 </div>
             </>
-            <ErrorDialog
+            {/* <ErrorDialog
                 open={errorDialog.open}
                 onOpenChange={(open) => setErrorDialog(prev => ({ ...prev, open }))}
                 title={errorDialog.title}
                 message={errorDialog.message}
+            /> */}
+            <ConfirmationDialog
+                open={confirmationDialog.open}
+                onOpenChange={(open) => setConfirmationDialog(prev => ({ ...prev, open }))}
+                title={confirmationDialog.title}
+                description={confirmationDialog.description}
+                onConfirm={confirmationDialog.onConfirm}
+                confirmText="Delete"
+                cancelText="Cancel"
             />
         </AppLayout>
     );
 }
+function setConfirmationDialog(arg0: { open: boolean; title: string; description: string; onConfirm: () => void; }) {
+    throw new Error('Function not implemented.');
+}
+

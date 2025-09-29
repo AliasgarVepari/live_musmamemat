@@ -1,6 +1,7 @@
 import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
 import { Input } from '@/components/admin/ui/input';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -46,7 +47,13 @@ interface CategoriesIndexProps {
 export default function CategoriesIndex({ categories, filters }: CategoriesIndexProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
-
+    const [confirmationDialog, setConfirmationDialog] = useState({
+        open: false,
+        title: '',
+        description: '',
+        onConfirm: () => {}
+    });
+    
     // Function to show error dialog
     const showErrorDialog = (title: string, message: string) => {
         // Check if dialog already exists
@@ -139,18 +146,23 @@ export default function CategoriesIndex({ categories, filters }: CategoriesIndex
             },
         );
     };
-
     const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to delete this category?')) {
-            router.delete(`/admin/categories/${id}`, {
-                onError: (errors) => {
-                    // Show error dialog for delete errors
-                    const errorMessages = Object.values(errors).flat();
-                    const errorMessage = errorMessages.join(', ');
-                    showErrorDialog('Cannot Delete Category', errorMessage);
-                },
-            });
-        }
+        setConfirmationDialog({
+            open: true,
+            title: 'Delete Category',
+            description: 'Are you sure you want to delete this category? This action cannot be undone.',
+            onConfirm: () => {
+                router.delete(`/admin/categories/${id}`, {
+                    preserveScroll: true,
+                    onError: (errors) => {
+                        // Show error dialog for delete errors
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        showErrorDialog('Cannot Delete Category', errorMessage);
+                    },
+                });
+            }
+        });
     };
 
     const categoriesData = categories?.data || [];
@@ -330,6 +342,19 @@ export default function CategoriesIndex({ categories, filters }: CategoriesIndex
                     </Card>
                 </div>
             </>
+            <ConfirmationDialog
+                open={confirmationDialog.open}
+                onOpenChange={(open) => setConfirmationDialog(prev => ({ ...prev, open }))}
+                title={confirmationDialog.title}
+                description={confirmationDialog.description}
+                onConfirm={confirmationDialog.onConfirm}
+                confirmText="Delete"
+                cancelText="Cancel"
+            />
         </AppLayout>
     );
 }
+function setConfirmationDialog(arg0: { open: boolean; title: string; description: string; onConfirm: () => void; }) {
+    throw new Error('Function not implemented.');
+}
+

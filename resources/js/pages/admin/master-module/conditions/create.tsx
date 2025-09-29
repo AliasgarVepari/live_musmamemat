@@ -1,7 +1,6 @@
 import InputError from '@/components/admin/input-error';
 import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
-import { ErrorDialog } from '@/components/admin/ui/error-dialog';
 import { Input } from '@/components/admin/ui/input';
 import { Label } from '@/components/admin/ui/label';
 import { Switch } from '@/components/admin/ui/switch';
@@ -201,12 +200,12 @@ export default function CreateCondition() {
                     </div>
                 </div>
             </>
-            <ErrorDialog
+            {/* <ErrorDialog
                 open={errorDialog.open}
                 onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
                 title={errorDialog.title}
                 message={errorDialog.message}
-            />
+            /> */}
         </AppLayout>
     );
 }

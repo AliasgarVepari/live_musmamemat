@@ -3,13 +3,14 @@ import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
 import { Input } from '@/components/admin/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/admin/ui/select';
+import { SuspensionDialog } from '@/components/admin/ui/suspension-dialog';
 import { useCachedPagination } from '@/hooks/admin/use-cached-pagination';
 import { useErrorHandler } from '@/hooks/admin/use-error-handler';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link as InertiaLink, router } from '@inertiajs/react';
 import { Eye, Filter, Search, Shield, ShieldCheck, ShieldX, Trash2, User, UserCheck, UserX, Users } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -72,6 +73,10 @@ interface UsersIndexProps {
 }
 
 export default function UsersIndex({ users, governorates, filters }: UsersIndexProps) {
+    const [showSuspensionDialog, setShowSuspensionDialog] = useState(false);
+    const [suspendingUser, setSuspendingUser] = useState<User | null>(null);
+    const [isSuspending, setIsSuspending] = useState(false);
+    
     useErrorHandler();
 
     // Use cached pagination hook
@@ -115,15 +120,46 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
     }
 
 
-    const handleToggleStatus = (userId: number) => {
+    const handleToggleStatus = (user: User) => {
+        if (user.status === 'active') {
+            // Show suspension dialog for active users
+            setSuspendingUser(user);
+            setShowSuspensionDialog(true);
+        } else {
+            // Direct toggle for other statuses
+            router.patch(
+                `/admin/users/${user.id}/toggle`,
+                {},
+                {
+                    onSuccess: () => {
+                        refetchListing();
+                    },
+                    onError: (errors) => {
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        alert(`Error: ${errorMessage}`);
+                    },
+                },
+            );
+        }
+    };
+
+    const handleSuspendUser = (reason: string) => {
+        if (!suspendingUser) return;
+        
+        setIsSuspending(true);
         router.patch(
-            `/admin/users/${userId}/toggle`,
-            {},
+            `/admin/users/${suspendingUser.id}/suspend`,
+            { suspension_reason: reason },
             {
                 onSuccess: () => {
+                    setIsSuspending(false);
+                    setShowSuspensionDialog(false);
+                    setSuspendingUser(null);
                     refetchListing();
                 },
                 onError: (errors) => {
+                    setIsSuspending(false);
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
                     alert(`Error: ${errorMessage}`);
@@ -347,7 +383,7 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                                                         <Eye className="h-4 w-4" />
                                                     </InertiaLink>
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(user.id)}>
+                                                <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(user)}>
                                                     {user.status === 'active' ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                                                 </Button>
                                                 <Button
@@ -488,6 +524,14 @@ export default function UsersIndex({ users, governorates, filters }: UsersIndexP
                     )}
                 </div>
             </>
+            
+            <SuspensionDialog
+                open={showSuspensionDialog}
+                onOpenChange={setShowSuspensionDialog}
+                onConfirm={handleSuspendUser}
+                userName={suspendingUser?.name_en || ''}
+                isSuspending={isSuspending}
+            />
         </AppLayout>
     );
 }

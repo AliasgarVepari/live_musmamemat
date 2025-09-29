@@ -17,6 +17,7 @@ import { Link as InertiaLink, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -56,6 +57,12 @@ interface ConditionsIndexProps {
 export default function ConditionsIndex({ conditions, filters }: ConditionsIndexProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
+    const [confirmationDialog, setConfirmationDialog] = useState({
+        open: false,
+        title: '',
+        description: '',
+        onConfirm: () => {}
+    });
 
     // Function to show error dialog
     const showErrorDialog = (title: string, message: string) => {
@@ -110,16 +117,21 @@ export default function ConditionsIndex({ conditions, filters }: ConditionsIndex
     };
 
     const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to delete this condition?')) {
-            router.delete(`/admin/conditions/${id}`, {
-                onError: (errors) => {
-                    // Show error dialog for delete errors
-                    const errorMessages = Object.values(errors).flat();
-                    const errorMessage = errorMessages.join(', ');
-                    showErrorDialog('Cannot Delete Condition', errorMessage);
-                },
-            });
-        }
+        setConfirmationDialog({
+            open: true,
+            title: 'Delete Condition',
+            description: 'Are you sure you want to delete this condition?',
+            onConfirm: () => {
+                router.delete(`/admin/conditions/${id}`, {
+                    preserveScroll: true,
+                    onError: (errors) => {
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        showErrorDialog('Cannot Delete Condition', errorMessage);
+                    },
+                });
+            }
+        });
     };
 
     const conditionsData = conditions?.data || [];
@@ -281,6 +293,19 @@ export default function ConditionsIndex({ conditions, filters }: ConditionsIndex
                     </Card>
                 </div>
             </>
+            <ConfirmationDialog
+                open={confirmationDialog.open}
+                onOpenChange={(open) => setConfirmationDialog(prev => ({ ...prev, open }))}
+                title={confirmationDialog.title}
+                description={confirmationDialog.description}
+                onConfirm={confirmationDialog.onConfirm}
+                confirmText="Delete"
+                cancelText="Cancel"
+            />
         </AppLayout>
     );
 }
+function setConfirmationDialog(arg0: { open: boolean; title: string; description: string; onConfirm: () => void; }) {
+    throw new Error('Function not implemented.');
+}
+

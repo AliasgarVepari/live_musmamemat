@@ -1,6 +1,9 @@
 import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
+import { ReactivationDialog } from '@/components/admin/ui/reactivation-dialog';
+import { SuspensionDialog } from '@/components/admin/ui/suspension-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/admin/ui/dialog';
 import { Label } from '@/components/admin/ui/label';
 import { Textarea } from '@/components/admin/ui/textarea';
@@ -143,6 +146,9 @@ interface UserShowProps {
 export default function UserShow({ user, totalAds, totalViews, activeAds }: UserShowProps) {
     const [showRevokeModal, setShowRevokeModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showReactivationDialog, setShowReactivationDialog] = useState(false);
+    const [showSuspensionDialog, setShowSuspensionDialog] = useState(false);
+    const [isSuspending, setIsSuspending] = useState(false);
 
     // Ad action states
     const [deletingAd, setDeletingAd] = useState<number | null>(null);
@@ -154,7 +160,12 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
     const [rejectReason, setRejectReason] = useState('');
     const [inactiveReason, setInactiveReason] = useState('');
     const [deleteReason, setDeleteReason] = useState('');
-
+    const [confirmationDialog, setConfirmationDialog] = useState({
+        open: false,
+        title: '',
+        description: '',
+        onConfirm: () => {}
+    });
     useErrorHandler();
 
     const {
@@ -205,28 +216,15 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
     };
 
     const handleToggleStatus = () => {
-        router.patch(
-            `/admin/users/${user.id}/toggle`,
-            {},
-            {
-                onError: (errors) => {
-                    const errorMessages = Object.values(errors).flat();
-                    const errorMessage = errorMessages.join(', ');
-                    alert(`Error: ${errorMessage}`);
-                },
-            },
-        );
-    };
-
-    const handleReactivate = () => {
-        if (confirm('Are you sure you want to reactivate this user account?')) {
-            router.post(
-                `/admin/users/${user.id}/reactivate`,
+        if (user.status === 'active') {
+            // Show suspension dialog for active users
+            setShowSuspensionDialog(true);
+        } else {
+            // Direct toggle for other statuses
+            router.patch(
+                `/admin/users/${user.id}/toggle`,
                 {},
                 {
-                    onSuccess: () => {
-                        alert('User account reactivated successfully!');
-                    },
                     onError: (errors) => {
                         const errorMessages = Object.values(errors).flat();
                         const errorMessage = errorMessages.join(', ');
@@ -235,6 +233,71 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
                 },
             );
         }
+    };
+
+    const handleSuspendUser = (reason: string) => {
+        setIsSuspending(true);
+        router.patch(
+            `/admin/users/${user.id}/suspend`,
+            { suspension_reason: reason },
+            {
+                onSuccess: () => {
+                    setIsSuspending(false);
+                    setShowSuspensionDialog(false);
+                },
+                onError: (errors) => {
+                    setIsSuspending(false);
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    alert(`Error: ${errorMessage}`);
+                },
+            },
+        );
+    };
+
+    // const handleReactivate = () => {
+    //     setConfirmationDialog({
+    //         open: true,
+    //         title: 'Reactivate User',
+    //         description: 'Are you sure you want to reactivate this user account?',
+    //         onConfirm: () => {
+    //             router.post(
+    //                             `/admin/users/${user.id}/reactivate`,
+    //                             {},
+    //                             {
+    //                                 onSuccess: () => {
+    //                                     alert('User account reactivated successfully!');
+    //                                 },
+    //                                 onError: (errors) => {
+    //                                     const errorMessages = Object.values(errors).flat();
+    //                                     const errorMessage = errorMessages.join(', ');
+    //                                     alert(`Error: ${errorMessage}`);
+    //                                 },
+    //                             },
+    //                         );
+    //         }
+    //     });
+    // };
+
+    const handleReactivate = () => {
+        setShowReactivationDialog(true);
+    };
+
+    const confirmReactivation = () => {
+        router.post(
+            `/admin/users/${user.id}/reactivate`,
+            {},
+            {
+                onSuccess: () => {
+                    alert('User account reactivated successfully!');
+                },
+                onError: (errors) => {
+                    const errorMessages = Object.values(errors).flat();
+                    const errorMessage = errorMessages.join(', ');
+                    alert(`Error: ${errorMessage}`);
+                },
+            },
+        );
     };
 
     // Ad action handlers
@@ -1143,6 +1206,31 @@ export default function UserShow({ user, totalAds, totalViews, activeAds }: User
                     </Dialog>
                 </div>
             </>
+            <ConfirmationDialog
+                open={confirmationDialog.open}
+                onOpenChange={(open) => setConfirmationDialog(prev => ({ ...prev, open }))}
+                title={confirmationDialog.title}
+                description={confirmationDialog.description}
+                onConfirm={confirmationDialog.onConfirm}
+                confirmText="Delete"
+                cancelText="Cancel"
+            />
+            
+            <ReactivationDialog
+                open={showReactivationDialog}
+                onOpenChange={setShowReactivationDialog}
+                onConfirm={confirmReactivation}
+                userName={user.name_en}
+            />
+            
+            <SuspensionDialog
+                open={showSuspensionDialog}
+                onOpenChange={setShowSuspensionDialog}
+                onConfirm={handleSuspendUser}
+                userName={user.name_en}
+                isSuspending={isSuspending}
+            />
         </AppLayout>
     );
 }
+

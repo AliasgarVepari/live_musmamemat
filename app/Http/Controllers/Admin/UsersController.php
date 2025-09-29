@@ -176,6 +176,20 @@ class UsersController extends Controller
         return back()->with('success', "User account {$newStatus} successfully.");
     }
 
+    public function suspend(Request $request, User $user)
+    {
+        $request->validate([
+            'suspension_reason' => 'required|string|max:1000',
+        ]);
+
+        $user->update([
+            'status'            => 'suspended',
+            'suspension_reason' => $request->suspension_reason,
+        ]);
+
+        return back()->with('success', 'User account suspended successfully.');
+    }
+
     public function revokeSubscription(Request $request, User $user)
     {
         $request->validate([

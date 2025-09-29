@@ -2,6 +2,7 @@ import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
 import { Input } from '@/components/admin/ui/input';
+import { ConfirmationDialog } from '@/components/admin/ui/confirmation-dialog';
 import AppLayout from '@/layouts/admin/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link as InertiaLink, router } from '@inertiajs/react';
@@ -45,6 +46,31 @@ interface GovernoratesIndexProps {
 export default function GovernoratesIndex({ governorates, filters }: GovernoratesIndexProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
+    const [confirmationDialog, setConfirmationDialog] = useState({
+        open: false,
+        title: '',
+        description: '',
+        onConfirm: () => {}
+    });
+
+    const handleDelete = (id: number) => {
+        setConfirmationDialog({
+            open: true,
+            title: 'Delete Governorate',
+            description: 'Are you sure you want to delete this governorate? This action cannot be undone.',
+            onConfirm: () => {
+                router.delete(`/admin/governorates/${id}`, {
+                    preserveScroll: true,
+                    onError: (errors) => {
+                        // Show error dialog for delete errors
+                        const errorMessages = Object.values(errors).flat();
+                        const errorMessage = errorMessages.join(', ');
+                        showErrorDialog('Cannot Delete Governorate', errorMessage);
+                    },
+                });
+            }
+        });
+    };
 
     // Function to show error dialog
     const showErrorDialog = (title: string, message: string) => {
@@ -101,20 +127,6 @@ export default function GovernoratesIndex({ governorates, filters }: Governorate
                 preserveScroll: true,
             },
         );
-    };
-
-    const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to delete this governorate?')) {
-            router.delete(`/admin/governorates/${id}`, {
-                preserveScroll: true,
-                onError: (errors) => {
-                    // Show error dialog for delete errors
-                    const errorMessages = Object.values(errors).flat();
-                    const errorMessage = errorMessages.join(', ');
-                    showErrorDialog('Cannot Delete Governorate', errorMessage);
-                },
-            });
-        }
     };
 
     const governoratesData = governorates?.data || [];
@@ -262,6 +274,15 @@ export default function GovernoratesIndex({ governorates, filters }: Governorate
                     </Card>
                 </div>
             </>
+            <ConfirmationDialog
+                open={confirmationDialog.open}
+                onOpenChange={(open) => setConfirmationDialog(prev => ({ ...prev, open }))}
+                title={confirmationDialog.title}
+                description={confirmationDialog.description}
+                onConfirm={confirmationDialog.onConfirm}
+                confirmText="Delete"
+                cancelText="Cancel"
+            />
         </AppLayout>
     );
 }
