@@ -39,7 +39,57 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
     const [deletingPlan, setDeletingPlan] = useState<number | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-    useErrorHandler();
+    // useErrorHandler(); // Disabled to prevent re-triggering of error dialogs
+
+    // Function to show error dialog
+    const showErrorDialog = (title: string, message: string) => {
+        // Check if dialog already exists
+        const existingDialog = document.querySelector('.error-dialog-overlay');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+
+        // Create error dialog element
+        const dialog = document.createElement('div');
+        dialog.className = 'error-dialog-overlay fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-black/30';
+        dialog.innerHTML = `
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+                <div class="p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-lg font-medium text-gray-900">${title}</h3>
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <p class="text-sm text-gray-700">${message}</p>
+                    </div>
+                    <div class="flex justify-end">
+                        <button 
+                            onclick="this.closest('.error-dialog-overlay').remove()"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add to document
+        document.body.appendChild(dialog);
+
+        // Auto remove after 10 seconds
+        setTimeout(() => {
+            if (dialog.parentNode) {
+                dialog.parentNode.removeChild(dialog);
+            }
+        }, 10000);
+    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -98,7 +148,7 @@ export default function SubscriptionPlansIndex({ plans }: SubscriptionPlansIndex
                     
                     const errorMessages = Object.values(errors).flat();
                     const errorMessage = errorMessages.join(', ');
-                    // alert(`Error: ${errorMessage}`);
+                    showErrorDialog('Delete Error', errorMessage);
                 },
             });
         }
