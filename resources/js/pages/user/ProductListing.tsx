@@ -306,7 +306,7 @@ const ProductListing = ({
                         )}
 
                         {/* Products Grid - Desktop */}
-                        <div className="mb-12 hidden grid-cols-2 gap-6 md:grid lg:grid-cols-3 xl:grid-cols-4">
+                        <div className="mb-12 hidden grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:grid">
                             {products?.data?.map((product: any) => (
                                 console.log(product),
                                 <Card
@@ -386,11 +386,11 @@ const ProductListing = ({
                         </div>
 
                         {/* Products List - Mobile */}
-                        <div className="mb-12 space-y-3 md:hidden">
+                        <div className="mb-12 space-y-2 md:hidden">
                             {products?.data?.map((product: any) => (
                                 <Card
                                     key={product.id}
-                                    className="group cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-lg"
+                                    className="group cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-lg active:scale-[0.98]"
                                     onClick={() => router.visit(productRouter.show(product.id, { 
                                         query: selectedCategory ? { selected_category: selectedCategory.slug } : {} 
                                     }))}
@@ -401,10 +401,11 @@ const ProductListing = ({
                                             <img
                                                 src={product.primaryImage?.url || '/placeholder-product.svg'}
                                                 alt={language === 'ar' ? product.title_ar : product.title_en}
-                                                className="h-24 w-24 rounded-lg object-cover"
+                                                className="h-20 w-20 rounded-lg object-cover"
                                             />
                                             {product.is_featured && (
-                                                <Badge className="bg-luxury-gold text-luxury-black absolute -left-1 -top-1 px-1 py-0 text-xs">
+                                                <Badge className="bg-luxury-gold text-luxury-black absolute -left-1 -top-1 px-1.5 py-0.5 text-xs font-medium">
+                                                    <Star className="mr-0.5 h-2.5 w-2.5" />
                                                     {language === 'ar' ? 'مميز' : 'Featured'}
                                                 </Badge>
                                             )}
@@ -412,44 +413,51 @@ const ProductListing = ({
 
                                         {/* Product Details */}
                                         <div className="min-w-0 flex-1">
-                                            <div className="mb-1 flex items-start justify-between">
+                                            <div className="mb-2 flex items-start justify-between">
                                                 <div className="min-w-0 flex-1 pr-2">
-                                                    <h3 className="text-luxury-black line-clamp-1 text-sm font-medium">
+                                                    <h3 className="text-luxury-black line-clamp-2 text-sm font-semibold leading-tight">
                                                         {language === 'ar' ? product.title_ar : product.title_en}
                                                     </h3>
-                                                    <p className="text-muted-foreground line-clamp-2 text-xs">{product.category?.name_en}</p>
+                                                    <p className="text-muted-foreground text-xs mt-0.5">{product.category?.name_en}</p>
                                                 </div>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 flex-shrink-0"
+                                                    className="h-7 w-7 flex-shrink-0 p-0"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        // Handle wishlist toggle
+                                                        handleFavoriteToggle(product.id);
                                                     }}
+                                                    disabled={favoriteLoading}
                                                 >
-                                                    <Heart className="h-4 w-4" />
+                                                    <Heart className={`h-4 w-4 ${isFavorited(product.id) ? 'fill-current text-red-500' : 'text-gray-400'}`} />
                                                 </Button>
                                             </div>
 
-                                            <div className="mt-2">
-                                                <div className="mb-1 flex items-center gap-2">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
                                                     <span className="text-lg font-bold text-blue-600">
                                                         {product.price} {product.priceType?.name_en || 'KD'}
                                                     </span>
                                                     {product.is_negotiable && (
-                                                        <Badge variant="outline" className="text-xs">
+                                                        <Badge variant="outline" className="text-xs px-1.5 py-0.5">
                                                             {language === 'ar' ? 'قابل للتفاوض' : 'Negotiable'}
                                                         </Badge>
                                                     )}
                                                 </div>
 
-                                                <div className="text-muted-foreground flex items-center justify-between text-xs">
-                                                    <span>
-                                                        {language === 'ar' ? product.condition?.name_ar : product.condition?.name_en} •
+                                                <div className="flex items-center justify-between">
+                                                    <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                                                        {language === 'ar' ? product.condition?.name_ar : product.condition?.name_en}
+                                                    </Badge>
+                                                    <div className="text-muted-foreground flex items-center text-xs">
+                                                        <MapPin className="mr-1 h-3 w-3" />
                                                         {language === 'ar' ? product.governorate?.name_ar : product.governorate?.name_en}
-                                                    </span>
-                                                    <span className="text-blue-500">{new Date(product.created_at).toLocaleDateString()}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="text-muted-foreground text-xs">
+                                                    {new Date(product.created_at).toLocaleDateString()}
                                                 </div>
                                             </div>
                                         </div>

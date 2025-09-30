@@ -162,7 +162,9 @@ const Wishlist = () => {
                             </Button>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        <>
+                            {/* Desktop Grid */}
+                            <div className="hidden grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:grid">
                             {wishlistItems.map((item) => (
                                 <Card key={item.id} className="hover:shadow-lg group transition-all duration-300">
                                     <div className="relative">
@@ -222,6 +224,78 @@ const Wishlist = () => {
                                 </Card>
                             ))}
                         </div>
+
+                        {/* Mobile List */}
+                        <div className="space-y-3 md:hidden">
+                            {wishlistItems.map((item) => (
+                                <Card key={item.id} className="group transition-all duration-300 hover:shadow-lg active:scale-[0.98]">
+                                    <div className="flex gap-3 p-3">
+                                        {/* Product Image */}
+                                        <div className="relative flex-shrink-0">
+                                            <div className="h-20 w-20 bg-gray-100 flex items-center justify-center overflow-hidden rounded-lg">
+                                                {item.primaryImage ? (
+                                                    <img
+                                                        src={item.primaryImage.url}
+                                                        alt={language === 'ar' ? item.title_ar : item.title_en}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <Heart className="h-8 w-8 text-gray-400" />
+                                                )}
+                                            </div>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="absolute -right-1 -top-1 h-6 w-6 border-none bg-white/90 text-red-500 hover:bg-white p-0"
+                                                onClick={() => handleRemoveFromWishlist(item.id)}
+                                                disabled={removing === item.id}
+                                            >
+                                                <Heart className="h-3 w-3 fill-current" />
+                                            </Button>
+                                        </div>
+
+                                        {/* Product Details */}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="mb-2">
+                                                <h3 className="text-luxury-black line-clamp-2 text-sm font-semibold leading-tight">
+                                                    {language === 'ar' ? item.title_ar : item.title_en}
+                                                </h3>
+                                                <p className="text-muted-foreground text-xs mt-0.5">
+                                                    {language === 'ar' ? item.category.name_ar : item.category.name_en}
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <div className="text-lg font-bold text-brand-red-600">
+                                                    {formatPrice(item.price)}
+                                                </div>
+
+                                                <div className="flex items-center text-xs text-muted-foreground">
+                                                    <MapPin className="mr-1 h-3 w-3" />
+                                                    {language === 'ar' ? item.governorate.name_ar : item.governorate.name_en}
+                                                </div>
+
+                                                <div className="flex items-center text-xs text-muted-foreground">
+                                                    <Calendar className="mr-1 h-3 w-3" />
+                                                    {formatDate(item.created_at)}
+                                                </div>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="w-full text-xs"
+                                                    onClick={() => handleViewProduct(item.id)}
+                                                >
+                                                    <Eye className="h-3 w-3 mr-1" />
+                                                    {language === 'ar' ? 'عرض' : 'View'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))}
+                            </div>
+                        </>
                     )}
                 </div>
             </main>

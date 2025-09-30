@@ -807,8 +807,8 @@ function Profile({
     return (
         <UserLayout>
             <Head title="Profile" />
-            <div className="bg-background min-h-screen">
-                <Header />
+        <div className="bg-background min-h-screen">
+            <Header />
 
                 <main className="main-content py-16">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -1108,7 +1108,8 @@ function Profile({
 
                         {/* Wishlist Tab */}
                         <TabsContent value="wishlist" className="mt-6">
-                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {/* Desktop Grid */}
+                            <div className="hidden grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:grid">
                                     {(recentWishlist?.length ?? 0) > 0 ? (
                                         recentWishlist?.map((item) => (
                                             <Card
@@ -1172,6 +1173,72 @@ function Profile({
                                     </div>
                                 )}
                             </div>
+
+                            {/* Mobile List */}
+                            <div className="space-y-3 md:hidden">
+                                {(recentWishlist?.length ?? 0) > 0 ? (
+                                    recentWishlist?.map((item) => (
+                                        <Card
+                                            key={item.id}
+                                            className="group cursor-pointer transition-all duration-300 hover:shadow-lg active:scale-[0.98]"
+                                            onClick={() => router.visit(`/product/${item.id}`)}
+                                        >
+                                            <div className="flex gap-3 p-3">
+                                                {/* Product Image */}
+                                                <div className="relative flex-shrink-0">
+                                                    <div className="h-20 w-20 items-center justify-center overflow-hidden rounded bg-gray-100 flex">
+                                                        {item.primaryImage ? (
+                                                            <img
+                                                                src={item.primaryImage.url}
+                                                                alt={language === 'ar' ? item.title_ar : item.title_en}
+                                                                className="h-full w-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <Heart className="h-8 w-8 text-gray-400" />
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Product Details */}
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="mb-2">
+                                                        <h3 className="text-luxury-black line-clamp-2 text-sm font-semibold leading-tight">
+                                                            {language === 'ar' ? item.title_ar : item.title_en}
+                                                        </h3>
+                                                        <p className="text-muted-foreground text-xs mt-0.5">
+                                                            {language === 'ar' ? item.category?.name_ar : item.category?.name_en}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <div className="text-lg font-bold text-brand-red-600">
+                                                            {formatPrice(item.price)}
+                                                        </div>
+
+                                                        <div className="text-muted-foreground text-xs">
+                                                            {language === 'ar' ? 'بواسطة' : 'by'}{' '}
+                                                            {language === 'ar' ? item.user?.name_ar : item.user?.name_en}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))
+                                ) : (
+                                    <div className="py-12 text-center">
+                                        <Heart className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                                        <h3 className="mb-2 text-lg font-semibold">
+                                            {language === 'ar' ? 'لا توجد عناصر في المفضلة' : 'No wishlist items'}
+                                        </h3>
+                                        <p className="text-muted-foreground mb-4">
+                                            {language === 'ar' ? 'ابدأ بإضافة المنتجات إلى مفضلتك' : 'Start adding products to your wishlist'}
+                                        </p>
+                                        <Button onClick={() => router.visit('/products')}>
+                                            {language === 'ar' ? 'تصفح المنتجات' : 'Browse Products'}
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                         </TabsContent>
 
                         {/* Listings Tab */}
@@ -1194,11 +1261,13 @@ function Profile({
 
                                     {listings.length > 0 ? (
                                         <>
-                                            {listings.map((listing: Ad) => (
+                                            {/* Desktop Layout */}
+                                            <div className="hidden space-y-4 md:block">
+                                                {listings.map((listing: Ad) => (
                                     <Card key={listing.id}>
                                         <CardContent className="p-6">
                                             <div className="flex items-center gap-4">
-                                                            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded bg-gray-100">
+                                                                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded bg-gray-100">
                                                         {listing.primaryImage ? (
                                                             <img 
                                                                 src={listing.primaryImage.url} 
@@ -1215,58 +1284,58 @@ function Profile({
                                                             <h3 className="font-semibold">
                                                                 {language === 'ar' ? listing.title_ar : listing.title_en}
                                                             </h3>
-                                                                    <div className="flex items-center gap-2">
-                                                                        {getStatusBadge(listing)}
-                                                                        {listing.is_featured && (
-                                                                            <Badge className="border-yellow-200 bg-yellow-100 text-yellow-800">
-                                                                                <TrendingUp className="mr-1 h-3 w-3" />
-                                                                                {language === 'ar' ? 'مميز' : 'Featured'}
-                                                                            </Badge>
-                                                                        )}
-                                                                    </div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            {getStatusBadge(listing)}
+                                                                            {listing.is_featured && (
+                                                                                <Badge className="border-yellow-200 bg-yellow-100 text-yellow-800">
+                                                                                    <TrendingUp className="mr-1 h-3 w-3" />
+                                                                                    {language === 'ar' ? 'مميز' : 'Featured'}
+                                                                                </Badge>
+                                                                            )}
+                                                                        </div>
                                                     </div>
 
                                                     <div className="text-muted-foreground mb-3 flex items-center gap-6 text-sm">
                                                             <span className="text-lg font-bold">{formatPrice(listing.price)}</span>
-                                                                    {hasAnalyticsEnabled() && (
+                                                                        {hasAnalyticsEnabled() && (
                                                         <span>
                                                                 {listing.views_count} {language === 'ar' ? 'مشاهدة' : 'views'}
                                                         </span>
-                                                                    )}
-                                                                    {hasAnalyticsEnabled() && (
+                                                                        )}
+                                                                        {hasAnalyticsEnabled() && (
                                                         <span>
                                                                 {listing.contact_count} {language === 'ar' ? 'اتصال' : 'contacts'}
                                                         </span>
-                                                                    )}
+                                                                        )}
                                                             <span>{new Date(listing.created_at).toLocaleDateString()}</span>
                                                     </div>
 
                                                     <div className="flex gap-2">
-                                                                    {/* Only show action buttons if ad is not sold */}
-                                                                    {listing.status !== 'sold' && (
-                                                                        <>
-                                                                            <Button variant="outline" size="sm" onClick={() => handleEditAd(listing)}>
+                                                                        {/* Only show action buttons if ad is not sold */}
+                                                                        {listing.status !== 'sold' && (
+                                                                            <>
+                                                                                <Button variant="outline" size="sm" onClick={() => handleEditAd(listing)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             {language === 'ar' ? 'تعديل' : 'Edit'}
                                                         </Button>
 
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                onClick={() => handleFeatureAd(listing.id)}
-                                                                                className={
-                                                                                    listing.is_featured
-                                                                                        ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                                                                        : ''
-                                                                                }
-                                                                            >
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    onClick={() => handleFeatureAd(listing.id)}
+                                                                                    className={
+                                                                                        listing.is_featured
+                                                                                            ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                                                                            : ''
+                                                                                    }
+                                                                                >
                                                             <TrendingUp className="mr-2 h-4 w-4" />
-                                                                                {listing.is_featured
-                                                                                    ? language === 'ar'
-                                                                                        ? 'إلغاء التمييز'
-                                                                                        : 'Unfeature'
-                                                                                    : language === 'ar'
-                                                                                      ? 'مميز'
+                                                                                    {listing.is_featured
+                                                                                        ? language === 'ar'
+                                                                                            ? 'إلغاء التمييز'
+                                                                                            : 'Unfeature'
+                                                                                        : language === 'ar'
+                                                                                          ? 'مميز'
                                                                                       : 'Feature'}
                                                         </Button>
                                                                         </>
@@ -1367,7 +1436,193 @@ function Profile({
                                             </div>
                                         </CardContent>
                                     </Card>
-                                            ))}
+                                                ))}
+                                            </div>
+
+                                            {/* Mobile Layout */}
+                                            <div className="space-y-3 md:hidden">
+                                                {listings.map((listing: Ad) => (
+                                                    <Card key={listing.id} className="group transition-all duration-300 hover:shadow-lg active:scale-[0.98]">
+                                                        <CardContent className="p-4">
+                                                            <div className="flex gap-3">
+                                                                {/* Product Image */}
+                                                                <div className="relative flex-shrink-0">
+                                                                    <div className="h-16 w-16 items-center justify-center overflow-hidden rounded bg-gray-100 flex">
+                                                                        {listing.primaryImage ? (
+                                                                            <img 
+                                                                                src={listing.primaryImage.url} 
+                                                                                alt={language === 'ar' ? listing.title_ar : listing.title_en} 
+                                                                                className="h-full w-full object-cover" 
+                                                                            />
+                                                                        ) : (
+                                                                            <Package className="h-6 w-6 text-gray-400" />
+                                                                        )}
+                                                                    </div>
+                                                                    {listing.is_featured && (
+                                                                        <Badge className="absolute -right-1 -top-1 border-yellow-200 bg-yellow-100 text-yellow-800 px-1.5 py-0.5 text-xs">
+                                                                            <TrendingUp className="mr-0.5 h-2.5 w-2.5" />
+                                                                            {language === 'ar' ? 'مميز' : 'Featured'}
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Product Details */}
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="mb-2 flex items-start justify-between">
+                                                                        <div className="min-w-0 flex-1 pr-2">
+                                                                            <h3 className="text-luxury-black line-clamp-2 text-sm font-semibold leading-tight">
+                                                                                {language === 'ar' ? listing.title_ar : listing.title_en}
+                                                                            </h3>
+                                                                            <div className="mt-1 flex items-center gap-2">
+                                                                                {getStatusBadge(listing)}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="space-y-2">
+                                                                        <div className="text-lg font-bold text-brand-red-600">
+                                                                            {formatPrice(listing.price)}
+                                                                        </div>
+
+                                                                        <div className="text-muted-foreground flex items-center gap-4 text-xs">
+                                                                            {hasAnalyticsEnabled() && (
+                                                                                <span>
+                                                                                    {listing.views_count} {language === 'ar' ? 'مشاهدة' : 'views'}
+                                                                                </span>
+                                                                            )}
+                                                                            {hasAnalyticsEnabled() && (
+                                                                                <span>
+                                                                                    {listing.contact_count} {language === 'ar' ? 'اتصال' : 'contacts'}
+                                                                                </span>
+                                                                            )}
+                                                                            <span>{new Date(listing.created_at).toLocaleDateString()}</span>
+                                                                        </div>
+
+                                                                        {/* Action Buttons - Mobile */}
+                                                                        {listing.status !== 'sold' && (
+                                                                            <div className="flex flex-wrap gap-1">
+                                                                                <Button 
+                                                                                    variant="outline" 
+                                                                                    size="sm" 
+                                                                                    className="text-xs px-2 py-1 h-7"
+                                                                                    onClick={() => handleEditAd(listing)}
+                                                                                >
+                                                                                    <Edit className="mr-1 h-3 w-3" />
+                                                                                    {language === 'ar' ? 'تعديل' : 'Edit'}
+                                                                                </Button>
+
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className={`text-xs px-2 py-1 h-7 ${
+                                                                                        listing.is_featured
+                                                                                            ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                                                                            : ''
+                                                                                    }`}
+                                                                                    onClick={() => handleFeatureAd(listing.id)}
+                                                                                >
+                                                                                    <TrendingUp className="mr-1 h-3 w-3" />
+                                                                                    {listing.is_featured
+                                                                                        ? language === 'ar'
+                                                                                            ? 'إلغاء'
+                                                                                            : 'Unfeature'
+                                                                                        : language === 'ar'
+                                                                                          ? 'مميز'
+                                                                                        : 'Feature'}
+                                                                                </Button>
+
+                                                                                {listing.status === 'active' && (
+                                                                                    <Button
+                                                                                        variant="outline"
+                                                                                        size="sm"
+                                                                                        className="text-xs px-2 py-1 h-7 text-orange-600 hover:text-orange-700"
+                                                                                        onClick={() => handleExpireAd(listing.id)}
+                                                                                    >
+                                                                                        <Clock className="mr-1 h-3 w-3" />
+                                                                                        {language === 'ar' ? 'انتهاء' : 'Expire'}
+                                                                                    </Button>
+                                                                                )}
+
+                                                                                {listing.status === 'expired' && (
+                                                                                    <Button
+                                                                                        variant="outline"
+                                                                                        size="sm"
+                                                                                        className="text-xs px-2 py-1 h-7 text-green-600 hover:text-green-700"
+                                                                                        onClick={() => handleReactivateAd(listing.id)}
+                                                                                    >
+                                                                                        <RotateCcw className="mr-1 h-3 w-3" />
+                                                                                        {language === 'ar' ? 'إعادة' : 'Reactivate'}
+                                                                                    </Button>
+                                                                                )}
+
+                                                                                {listing.status === 'inactive' && (
+                                                                                    <Button
+                                                                                        variant="outline"
+                                                                                        size="sm"
+                                                                                        className="text-xs px-2 py-1 h-7 text-gray-600 hover:text-gray-700"
+                                                                                        onClick={() => handleViewInactiveMessage(listing)}
+                                                                                    >
+                                                                                        <Eye className="mr-1 h-3 w-3" />
+                                                                                        {language === 'ar' ? 'عرض' : 'View'}
+                                                                                    </Button>
+                                                                                )}
+
+                                                                                {listing.status === 'active' && listing.is_approved === true && (
+                                                                                    <Button
+                                                                                        variant="outline"
+                                                                                        size="sm"
+                                                                                        className="text-xs px-2 py-1 h-7 text-blue-600 hover:text-blue-700"
+                                                                                        onClick={() => handleMarkAsSold(listing.id)}
+                                                                                    >
+                                                                                        <CheckCircle2 className="mr-1 h-3 w-3" />
+                                                                                        {language === 'ar' ? 'تم البيع' : 'Sold'}
+                                                                                    </Button>
+                                                                                )}
+
+                                                                                <AlertDialog>
+                                                                                    <AlertDialogTrigger asChild>
+                                                                                        <Button 
+                                                                                            variant="outline" 
+                                                                                            size="sm" 
+                                                                                            className="text-xs px-2 py-1 h-7 text-destructive hover:text-destructive"
+                                                                                        >
+                                                                                            <Trash2 className="mr-1 h-3 w-3" />
+                                                                                            {language === 'ar' ? 'حذف' : 'Delete'}
+                                                                                        </Button>
+                                                                                    </AlertDialogTrigger>
+                                                                                    <AlertDialogContent>
+                                                                                        <AlertDialogHeader>
+                                                                                            <AlertDialogTitle>
+                                                                                                {language === 'ar' ? 'تأكيد الحذف' : 'Confirm Delete'}
+                                                                                            </AlertDialogTitle>
+                                                                                            <AlertDialogDescription>
+                                                                                                {language === 'ar'
+                                                                                                    ? 'هل أنت متأكد من أنك تريد حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء.'
+                                                                                                    : 'Are you sure you want to delete this ad? This action cannot be undone.'}
+                                                                                            </AlertDialogDescription>
+                                                                                        </AlertDialogHeader>
+                                                                                        <AlertDialogFooter>
+                                                                                            <AlertDialogCancel>
+                                                                                                {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                                                                                            </AlertDialogCancel>
+                                                                                            <AlertDialogAction
+                                                                                                onClick={() => handleDeleteAd(listing.id)}
+                                                                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                                                            >
+                                                                                                {language === 'ar' ? 'حذف' : 'Delete'}
+                                                                                            </AlertDialogAction>
+                                                                                        </AlertDialogFooter>
+                                                                                    </AlertDialogContent>
+                                                                                </AlertDialog>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </CardContent>
+                                                    </Card>
+                                                ))}
+                                            </div>
 
                                             {/* Pagination Controls */}
                                             {pagination && (
@@ -1515,9 +1770,9 @@ function Profile({
                                                             )}
                                                         </div>
                                                         <DialogFooter>
-                                                            <Button variant="outline" onClick={() => setIsUpgradeDialogOpen(false)}>
-                                                                {language === 'ar' ? 'إلغاء' : 'Cancel'}
-                                                            </Button>
+                                                        <Button variant="outline" onClick={() => setIsUpgradeDialogOpen(false)}>
+                                                            {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                                                        </Button>
                                                         </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
