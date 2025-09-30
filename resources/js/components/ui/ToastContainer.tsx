@@ -11,26 +11,14 @@ const ToastContainer: React.FC = () => {
 
   return (
     <div 
-      className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] flex flex-col gap-2 w-full max-w-md px-4"
-      style={{
-        position: 'fixed',
-        top: '16px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        width: '100%',
-        maxWidth: '448px',
-        padding: '0 16px'
-      }}
+      className="fixed top-0 left-0 right-0 z-[9999] flex flex-col gap-2 w-full px-4 pt-4 sm:top-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 sm:max-w-md"
     >
-      {toasts.map((toast) => (
+      {toasts.map((toast, index) => (
         <Toast
           key={toast.id}
           toast={toast}
           onRemove={removeToast}
+          index={index}
         />
       ))}
     </div>

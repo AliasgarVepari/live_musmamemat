@@ -114,7 +114,7 @@ class ProductApiController extends Controller
 
         // Pagination
         $perPage = $request->get('per_page', 20);
-        $perPage = in_array($perPage, [12, 24, 48]) ? $perPage : 20;
+        $perPage = in_array($perPage, [5, 12, 24, 48]) ? $perPage : 20;
 
         $products = $query->paginate($perPage);
 

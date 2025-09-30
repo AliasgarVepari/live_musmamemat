@@ -10,10 +10,10 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavorites } from '@/hooks/user/use-favorites';
 import { AuthModal } from '@/components/user/auth/AuthModal';
-import { useCachedPagination } from '@/hooks/user/use-cached-pagination';
+import { useInfiniteScroll } from '@/hooks/user/use-infinite-scroll';
 import { Head } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Heart, Loader2, MapPin, Search, SlidersHorizontal, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Import product images
 import designerSunglasses1 from '@/assets/user/products/designer-sunglasses-1.jpg';
@@ -49,19 +49,20 @@ const ProductListing = ({
     const { isFavorited, toggleFavorite, loading: favoriteLoading } = useFavorites();
     const [showAuthModal, setShowAuthModal] = useState(false);
 
-    // Use cached pagination hook
+    // Use infinite scroll hook
     const {
         data: productsData,
+        pagination,
         isLoading,
-        paginationState,
-        goToPage,
-        setPerPage,
+        hasNextPage,
+        isFetchingNextPage,
+        scrollState,
         setSearch,
         updateFilter,
-    } = useCachedPagination<typeof initialProducts>({
+        loadMore,
+    } = useInfiniteScroll<typeof initialProducts.data[0]>({
         endpoint: '/api/user/products',
-        initialPage: initialProducts?.current_page || 1,
-        initialPerPage: initialFilters?.per_page || '20',
+        perPage: 5,
         initialSearch: initialFilters?.search || '',
         initialFilters: {
             category: initialFilters?.category || 'all',
@@ -75,8 +76,20 @@ const ProductListing = ({
         },
     });
 
-    // Use cached data if available, otherwise fall back to props
-    const products = productsData || initialProducts;
+    // Use infinite scroll data if available, otherwise fall back to first 5 records from props
+    const products = productsData?.length > 0 ? { data: productsData } : {
+        ...initialProducts,
+        data: initialProducts?.data?.slice(0, 5) || []
+    };
+    
+    // Create pagination info for display when using initial products
+    const displayPagination = pagination || {
+        total: initialProducts?.total || 0,
+        from: 1,
+        to: Math.min(5, initialProducts?.data?.length || 0),
+        current_page: 1,
+        last_page: Math.ceil((initialProducts?.total || 0) / 5),
+    };
     const categories = initialCategories || [];
     const governorates = initialGovernorates || [];
     const conditions = initialConditions || [];
@@ -86,7 +99,36 @@ const ProductListing = ({
     const [showFilters, setShowFilters] = useState<boolean>(false);
     const [priceRange, setPriceRange] = useState([0, 10000]);
 
-    const selectedCategory = categories.find((cat) => cat.slug === paginationState.filters.category);
+    // Infinite scroll effect using Intersection Observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const target = entries[0];
+                if (target.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    loadMore();
+                }
+            },
+            {
+                root: null,
+                rootMargin: '100px',
+                threshold: 0.1,
+            }
+        );
+
+        // Create a sentinel element to observe
+        const sentinel = document.getElementById('infinite-scroll-sentinel');
+        if (sentinel) {
+            observer.observe(sentinel);
+        }
+
+        return () => {
+            if (sentinel) {
+                observer.unobserve(sentinel);
+            }
+        };
+    }, [hasNextPage, isFetchingNextPage, loadMore]);
+
+    const selectedCategory = categories.find((cat) => cat.slug === scrollState.filters.category);
 
     const handleCategoryChange = (categorySlug: string) => {
         updateFilter('category', categorySlug);
@@ -168,7 +210,7 @@ const ProductListing = ({
                                 {language === 'ar' ? selectedCategory?.name_ar || 'All Products' : selectedCategory?.name_en || 'All Products'}
                             </h1>
                             <p className="text-muted-foreground">
-                                {language === 'ar' ? 'منتج متاح' : 'products available'} {products?.total || 0}
+                                {language === 'ar' ? 'منتج متاح' : 'products available'} {displayPagination?.total || 0}
                             </p>
                         </div>
 
@@ -176,7 +218,7 @@ const ProductListing = ({
                         <div className="mb-6 overflow-x-auto">
                             <div className="flex min-w-max space-x-2 pb-2">
                                 <Button
-                                    variant={paginationState.filters.category === 'all' ? 'default' : 'secondary'}
+                                    variant={scrollState.filters.category === 'all' ? 'default' : 'secondary'}
                                     size="sm"
                                     onClick={() => handleCategoryChange('all')}
                                     className="whitespace-nowrap"
@@ -186,7 +228,7 @@ const ProductListing = ({
                                 {categories.map((category) => (
                                     <Button
                                         key={category.slug}
-                                        variant={paginationState.filters.category === category.slug ? 'default' : 'secondary'}
+                                        variant={scrollState.filters.category === category.slug ? 'default' : 'secondary'}
                                         size="sm"
                                         onClick={() => handleCategoryChange(category.slug)}
                                         className="whitespace-nowrap"
@@ -203,7 +245,7 @@ const ProductListing = ({
                                 <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform" />
                                 <Input
                                     placeholder={language === 'ar' ? 'البحث في المنتجات...' : 'Search products...'}
-                                    value={paginationState.search}
+                                    value={scrollState.search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="pl-10"
                                 />
@@ -215,7 +257,7 @@ const ProductListing = ({
                                     {language === 'ar' ? 'فلاتر' : 'Filters'}
                                 </Button>
 
-                                <Select value={paginationState.filters.sort} onValueChange={handleSortChange}>
+                                <Select value={scrollState.filters.sort} onValueChange={handleSortChange}>
                                     <SelectTrigger className="w-40">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -245,7 +287,7 @@ const ProductListing = ({
                                     <div>
                                         <label className="mb-2 block text-sm font-medium">{language === 'ar' ? 'الموقع' : 'Location'}</label>
                                         <Select
-                                            value={paginationState.filters.governorate_id}
+                                            value={scrollState.filters.governorate_id}
                                             onValueChange={(value) => updateFilter('governorate_id', value)}
                                         >
                                             <SelectTrigger>
@@ -265,7 +307,7 @@ const ProductListing = ({
                                     <div>
                                         <label className="mb-2 block text-sm font-medium">{language === 'ar' ? 'الحالة' : 'Condition'}</label>
                                         <Select
-                                            value={paginationState.filters.condition_id}
+                                            value={scrollState.filters.condition_id}
                                             onValueChange={(value) => updateFilter('condition_id', value)}
                                         >
                                             <SelectTrigger>
@@ -285,7 +327,7 @@ const ProductListing = ({
                                     <div>
                                         <label className="mb-2 block text-sm font-medium">{language === 'ar' ? 'نوع السعر' : 'Price Type'}</label>
                                         <Select
-                                            value={paginationState.filters.price_type_id}
+                                            value={scrollState.filters.price_type_id}
                                             onValueChange={(value) => updateFilter('price_type_id', value)}
                                         >
                                             <SelectTrigger>
@@ -436,7 +478,7 @@ const ProductListing = ({
 
                                             <div className="space-y-2">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-lg font-bold text-blue-600">
+                                                    <span className="text-luxury-black text-lg font-bold">
                                                         {product.price} {product.priceType?.name_en || 'KD'}
                                                     </span>
                                                     {product.is_negotiable && (
@@ -466,89 +508,42 @@ const ProductListing = ({
                             ))}
                         </div>
 
-                        {/* Pagination */}
-                        {products?.data && products.data.length > 0 && (
-                            <div className="flex justify-center">
-                                <div className="flex items-center space-x-2">
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        disabled={products.current_page <= 1}
-                                        onClick={() => goToPage(products.current_page - 1)}
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                        {language === 'ar' ? 'السابق' : 'Previous'}
-                                    </Button>
+                        {/* Infinite Scroll Sentinel */}
+                        <div id="infinite-scroll-sentinel" className="h-4"></div>
 
-                                    <div className="flex space-x-1">
-                                        {(() => {
-                                            const current = products.current_page;
-                                            const last = products.last_page;
-                                            const delta = 2;
-                                            const range = [];
-                                            const rangeWithDots = [];
+                        {/* Skeleton Loading for Next Page - Mobile */}
+                        {isFetchingNextPage && (
+                            <div className="mb-12 space-y-2 md:hidden">
+                                {[...Array(5)].map((_, index) => (
+                                    <Card key={`skeleton-mobile-${index}`} className="animate-pulse">
+                                        <div className="flex gap-3 p-3">
+                                            <div className="h-20 w-20 bg-gray-200 rounded-lg flex-shrink-0"></div>
+                                            <div className="min-w-0 flex-1 space-y-2">
+                                                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                                                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                                                <div className="h-5 bg-gray-200 rounded w-1/4"></div>
+                                                <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
 
-                                            // Calculate the range of pages to show
-                                            for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
-                                                range.push(i);
-                                            }
-
-                                            // Always show first page
-                                            if (current - delta > 2) {
-                                                rangeWithDots.push(1, '...');
-                                            } else {
-                                                rangeWithDots.push(1);
-                                            }
-
-                                            // Add the calculated range (excluding first and last)
-                                            rangeWithDots.push(...range);
-
-                                            // Always show last page (if it's not already included)
-                                            if (last > 1) {
-                                                if (current + delta < last - 1) {
-                                                    rangeWithDots.push('...', last);
-                                                } else if (!range.includes(last)) {
-                                                    rangeWithDots.push(last);
-                                                }
-                                            }
-
-                                            return rangeWithDots.map((page, index) => {
-                                                if (page === '...') {
-                                                    return (
-                                                        <span key={`dots-${index}`} className="text-muted-foreground px-2">
-                                                            ...
-                                                        </span>
-                                                    );
-                                                }
-
-                                                const pageNum = page as number;
-                                                const isActive = pageNum === current;
-
-                                                return (
-                                                    <Button
-                                                        key={pageNum}
-                                                        variant={isActive ? 'default' : 'secondary'}
-                                                        size="sm"
-                                                        className={`w-10 ${isActive ? 'bg-luxury-black hover:bg-luxury-black text-white' : ''}`}
-                                                        onClick={() => goToPage(pageNum)}
-                                                    >
-                                                        {pageNum}
-                                                    </Button>
-                                                );
-                                            });
-                                        })()}
-                                    </div>
-
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        disabled={products.current_page >= products.last_page}
-                                        onClick={() => goToPage(products.current_page + 1)}
-                                    >
-                                        {language === 'ar' ? 'التالي' : 'Next'}
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
-                                </div>
+                        {/* Skeleton Loading for Next Page - Desktop */}
+                        {isFetchingNextPage && (
+                            <div className="mb-12 hidden grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:grid">
+                                {[...Array(5)].map((_, index) => (
+                                    <Card key={`skeleton-desktop-${index}`} className="animate-pulse">
+                                        <div className="h-64 bg-gray-200"></div>
+                                        <CardContent className="p-4 space-y-2">
+                                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                                            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                                            <div className="h-5 bg-gray-200 rounded w-1/4"></div>
+                                            <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
                             </div>
                         )}
                     </div>

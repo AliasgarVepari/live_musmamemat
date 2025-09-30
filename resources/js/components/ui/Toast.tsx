@@ -10,9 +10,10 @@ interface ToastProps {
     message: string;
   };
   onRemove: (id: string) => void;
+  index: number;
 }
 
-const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
+const Toast: React.FC<ToastProps> = ({ toast, onRemove, index }) => {
   const getIcon = () => {
     switch (toast.type) {
       case 'success':
@@ -46,19 +47,15 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
   return (
     <div
       className={cn(
-        'relative flex w-full items-start gap-3 rounded-lg border-2 p-4 shadow-xl transition-all duration-500',
+        'relative flex w-full items-start gap-3 rounded-lg border-2 p-4 shadow-xl transition-all duration-500 transform',
+        'animate-in slide-in-from-top-2 fade-in-0 sm:slide-in-from-right-2',
+        'data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-2 data-[state=closed]:fade-out-0 sm:data-[state=closed]:slide-out-to-right-2',
         getBackgroundColor()
       )}
       style={{
-        position: 'relative',
-        zIndex: 9999,
-        backgroundColor: toast.type === 'success' ? '#f0fdf4' : '#fef2f2',
-        borderColor: toast.type === 'success' ? '#bbf7d0' : '#fecaca',
-        borderWidth: '2px',
-        borderRadius: '8px',
-        padding: '16px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        marginBottom: '8px'
+        animationDelay: `${index * 100}ms`,
+        transform: 'translateY(0)',
+        opacity: 1,
       }}
     >
       <div className="flex-shrink-0">
@@ -66,17 +63,18 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
       </div>
       
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-gray-900">
+        <div className="font-medium text-gray-900 text-sm sm:text-base">
           {toast.title}
         </div>
-        <div className="mt-1 text-sm text-gray-600">
+        <div className="mt-1 text-xs sm:text-sm text-gray-600 leading-relaxed">
           {toast.message}
         </div>
       </div>
       
       <button
         onClick={() => onRemove(toast.id)}
-        className="flex-shrink-0 rounded-md p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+        className="flex-shrink-0 rounded-md p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+        aria-label="Close notification"
       >
         <X className="h-4 w-4" />
       </button>

@@ -32,6 +32,7 @@ import UserLayout from '@/layouts/user/user-layout';
 import { SellFormData } from '@/pages/user/SellWizard';
 import { Head, router, useForm } from '@inertiajs/react';
 import { 
+    ArrowLeft,
     CheckCircle2,
     Clock,
     CreditCard, 
@@ -814,14 +815,21 @@ function Profile({
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     {/* Profile Header */}
                     <div className={`mb-8 ${language === 'ar' ? 'rtl' : ''}`}>
-                            {/* Go to Home Button */}
+                            {/* Back to Home Button */}
                             <div className="mb-4">
-                                <Button variant="outline" onClick={() => router.visit('/')} className="flex items-center gap-2">
-                                    <Home className="h-4 w-4" />
-                                    <span className={language === 'ar' ? 'font-arabic' : ''}>
-                                        {language === 'ar' ? 'العودة للرئيسية' : 'Go to Home'}
+                                <button
+                                    onClick={() => router.visit('/')}
+                                    className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-all duration-200 shadow-sm hover:shadow-md active:scale-95"
+                                    aria-label={language === 'ar' ? 'العودة للرئيسية' : 'Go to Home'}
+                                >
+                                    <ArrowLeft className="h-4 w-4 text-gray-600 group-hover:text-gray-700 transition-colors" />
+                                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-800 transition-colors">
+                                        {language === 'ar' ? 'الرئيسية' : 'Home'}
                                     </span>
-                                </Button>
+                                    
+                                    {/* iOS-style ripple effect */}
+                                    <div className="absolute inset-0 rounded-full bg-gray-300 opacity-0 group-active:opacity-20 transition-opacity duration-150"></div>
+                                </button>
                             </div>
 
                         <div className="flex flex-col items-start gap-6 md:flex-row md:items-center">

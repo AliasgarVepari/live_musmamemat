@@ -44,9 +44,9 @@ export const Header = () => {
                     <div className="flex h-16 items-center justify-between">
                         {/* Mobile menu */}
                         <div className="w-10 lg:hidden">
-                            <Button variant="ghost" size="sm">
+                            {/* <Button variant="ghost" size="sm">
                                 <Menu className="h-4 w-4 stroke-[1.5]" />
-                            </Button>
+                            </Button> */}
                         </div>
 
                         {/* Logo - centered on mobile */}
