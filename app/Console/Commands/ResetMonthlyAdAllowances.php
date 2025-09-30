@@ -38,9 +38,6 @@ class ResetMonthlyAdAllowances extends Command
             ->where('status', 'active')
             ->where('is_active', true)
             ->where('expires_at', '>', now())
-            ->whereHas('subscriptionPlan', function ($query) {
-                $query->where('is_lifetime', false);
-            })
             ->get()
             ->filter(function ($subscription) {
                 return $subscription->needsMonthlyReset();

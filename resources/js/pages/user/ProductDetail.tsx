@@ -317,11 +317,11 @@ const ProductDetail = ({ product, selectedCategory }: ProductDetailProps) => {
                                             <Calendar className="mr-1 h-4 w-4" />
                                             {new Date(product.created_at).toLocaleDateString()}
                                         </div>
-                                        <div className="text-muted-foreground flex items-center text-sm">
+                                        {/* <div className="text-muted-foreground flex items-center text-sm">
                                             <span>
                                                 {product.views_count} {language === 'ar' ? 'مشاهدة' : 'views'}
                                             </span>
-                                        </div>
+                                        </div> */}
                                     </div>
                                 </div>
 

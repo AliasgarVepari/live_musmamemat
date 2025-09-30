@@ -495,7 +495,7 @@ const WizardContent = ({ step = 'category' }: { step?: string }) => {
         return <ProductDetails formData={formData} updateFormData={updateFormData} isSubmitting={isSubmitting} />;
       case 3:
         return isUpgradeMode ? 
-          <SelectUpgradeSubscription formData={formData} updateFormData={updateFormData} /> :
+          <SelectUpgradeSubscription formData={formData} updateFormData={updateFormData} currentSubscription={userSubscription} /> :
           <SelectSubscription formData={formData} updateFormData={updateFormData} />;
       case 4:
         return <SubmissionSuccess />;

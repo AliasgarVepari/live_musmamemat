@@ -60,9 +60,11 @@ Route::prefix('user')->group(function () {
     Route::get('/subscription-plans/upgrade', [ProductApiController::class, 'getUpgradePlans'])->middleware(['web', 'api.auth']);
     Route::get('/subscription-plans/upgrade-eligibility', [ProductApiController::class, 'checkUpgradeEligibility'])->middleware('auth:sanctum');
     Route::get('/subscription-plans/upgrade-options', [ProductApiController::class, 'upgradeSubscriptionPlans'])->middleware('auth:sanctum');
+    Route::get('/subscription-plans/upgrade-options-for-profile', [ProductApiController::class, 'upgradeSubscriptionPlansForProfile'])->middleware('auth:sanctum');
     Route::get('/subscription', [ProductApiController::class, 'getUserSubscription'])->middleware('auth:sanctum');
     Route::post('/ads/{id}/subscription', [ProductApiController::class, 'assignSubscription'])->middleware('auth:sanctum');
     Route::post('/subscription/upgrade', [ProductApiController::class, 'upgradeSubscription'])->middleware('auth:sanctum');
+    Route::post('/subscription/upgrade-from-profile', [ProductApiController::class, 'upgradeSubscriptionFromProfile'])->middleware('auth:sanctum');
 
     // Favorites routes
     Route::post('/products/{id}/favorite', [ProductApiController::class, 'addToFavorites'])->middleware('auth:sanctum');

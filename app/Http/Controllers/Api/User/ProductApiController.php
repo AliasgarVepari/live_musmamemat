@@ -9,6 +9,7 @@ use App\Models\Favorite;
 use App\Models\Governorate;
 use App\Models\PriceType;
 use App\Models\SubscriptionPlan;
+use App\Models\UserSubscription;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -478,9 +479,101 @@ class ProductApiController extends Controller
             }
         });
 
+        // Calculate discount for each plan
+        $discount = $this->calculatePlanDiscount($userSubscription, $currentPlan);
+        $upgradePlansWithDiscount = $upgradePlans->map(function ($plan) use ($discount) {
+            $plan->original_price = $plan->price;
+            $plan->discounted_price = max(0, floatval($plan->price) - $discount);
+            $plan->discount_amount = $discount;
+            return $plan;
+        });
+
         return response()->json([
             'success' => true,
-            'data' => $upgradePlans,
+            'data' => $upgradePlansWithDiscount,
+            'current_plan' => [
+                'id' => $currentPlan->id,
+                'name_en' => $currentPlan->name_en,
+                'name_ar' => $currentPlan->name_ar,
+                'slug' => $currentPlan->slug,
+                'description_en' => $currentPlan->description_en,
+                'description_ar' => $currentPlan->description_ar,
+                'price' => $currentPlan->price,
+                'months_count' => $currentPlan->months_count,
+                'is_lifetime' => $currentPlan->is_lifetime,
+                'readable_billing_cycle' => $currentPlan->readable_billing_cycle ?: $currentPlan->generateReadableBillingCycle(),
+                'ad_limit' => $currentPlan->ad_limit,
+                'featured_ads' => $currentPlan->featured_ads,
+                'featured_ads_count' => $currentPlan->featured_ads_count,
+                'has_unlimited_featured_ads' => $currentPlan->has_unlimited_featured_ads,
+                'priority_support' => $currentPlan->priority_support,
+                'analytics' => $currentPlan->analytics,
+                'status' => $currentPlan->status
+            ]
+        ]);
+    }
+
+    /**
+     * Get upgrade subscription plans for profile (higher price than current)
+     */
+    public function upgradeSubscriptionPlansForProfile()
+    {
+        $user = Auth::guard('sanctum')->user();
+        $userSubscription = $user->subscription;
+
+        if (!$userSubscription || !$userSubscription->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active subscription found'
+            ], 400);
+        }
+
+        $currentPlan = $userSubscription->subscriptionPlan;
+        
+        // Get plans with higher price and higher ad_limit
+        $upgradePlans = SubscriptionPlan::where('status', 'active')
+            ->where('price', '>', $currentPlan->price)
+            ->where('id', '<>', $currentPlan->id)
+            ->orderBy('price', 'asc')
+            ->get([
+                'id',
+                'name_en',
+                'name_ar',
+                'slug',
+                'description_en',
+                'description_ar',
+                'price',
+                'months_count',
+                'is_lifetime',
+                'readable_billing_cycle',
+                'ad_limit',
+                'featured_ads',
+                'featured_ads_count',
+                'has_unlimited_featured_ads',
+                'priority_support',
+                'analytics',
+                'status'
+            ]);
+
+        // Generate readable billing cycle for plans that don't have it
+        $upgradePlans->each(function ($plan) {
+            if (empty($plan->readable_billing_cycle)) {
+                $plan->readable_billing_cycle = $plan->generateReadableBillingCycle();
+            }
+        });
+
+        // Calculate discount for each plan
+        $discount = $this->calculatePlanDiscount($userSubscription, $currentPlan);
+        $upgradePlansWithDiscount = $upgradePlans->map(function ($plan) use ($discount) {
+            $plan->original_price = $plan->price;
+            $plan->discounted_price = max(0, floatval($plan->price) - $discount);
+            $plan->discount_amount = $discount;
+            return $plan;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $upgradePlansWithDiscount,
             'current_plan' => [
                 'id' => $currentPlan->id,
                 'name_en' => $currentPlan->name_en,
@@ -766,7 +859,7 @@ class ProductApiController extends Controller
         }
 
         // Calculate upgrade cost
-        $upgradeCost = $this->calculateUpgradeCost($currentSubscription, $newPlan);
+        $upgradeCost = $this->calculatePlanDiscount($currentSubscription, $newPlan);
 
         // Calculate ad limit increase
         $adLimitIncrease = $newPlan->ad_limit - $currentSubscription->plan->ad_limit;
@@ -775,7 +868,7 @@ class ProductApiController extends Controller
         $adsUsedThisMonth = $currentSubscription->plan->ad_limit - $currentSubscription->usable_ad_for_this_month;
         
         // Calculate new allowance: new plan's ad limit minus ads already used
-        $newAllowance = $newPlan->ad_limit - $adsUsedThisMonth;
+        $newAllowance = $newPlan->ad_limit;
 
         // Create transaction record
         $transaction = Transaction::create([
@@ -783,7 +876,106 @@ class ProductApiController extends Controller
             'subscription_plan_id' => $newPlan->id,
             'transaction_id' => Transaction::generateTransactionId(),
             'type' => 'upgrade',
-            'amount' => $upgradeCost,
+            'amount' => $newPlan->price - $upgradeCost,
+            'currency' => 'KWD',
+            'payment_method' => 'manual',
+            'status' => 'completed',
+            'description' => "Subscription upgrade from {$currentSubscription->plan->name_en} to {$newPlan->name_en}",
+            'metadata' => [
+                'upgrade_cost' => $upgradeCost,
+                'original_plan_price' => $currentSubscription->plan->price,
+                'new_plan_price' => $newPlan->price,
+                'ad_limit_increase' => $adLimitIncrease,
+                'ads_used_this_month' => $adsUsedThisMonth,
+                'new_allowance' => $newAllowance - 1,
+                'subscription_type' => $newPlan->is_lifetime ? 'lifetime' : 'monthly',
+                'months_count' => $newPlan->months_count,
+            ],
+            'processed_at' => now(),
+        ]);
+
+        // Update subscription
+        $expiresAt = $newPlan->is_lifetime 
+            ? now()->addYears(100) 
+            : now()->addMonths($newPlan->months_count);
+
+        $currentSubscription->update([
+            'subscription_plan_id' => $newPlan->id,
+            'expires_at' => $expiresAt,
+            'amount_paid' => $newPlan->price,
+            'payment_method' => 'manual',
+            'usable_ad_for_this_month' => $newAllowance,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Subscription upgraded successfully',
+            'data' => [
+                'user_subscription' => $currentSubscription->fresh(['plan']),
+                'subscription_plan' => $newPlan,
+                'transaction' => $transaction,
+                'ad_limit_increase' => $adLimitIncrease,
+                'ads_used_this_month' => $adsUsedThisMonth,
+                'new_allowance' => $newAllowance,
+            ],
+        ]);
+    }
+
+    /**
+     * Upgrade subscription from profile page
+     */
+    public function upgradeSubscriptionFromProfile(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'subscription_plan_id' => 'required|exists:subscription_plans,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::guard('sanctum')->user();
+        $currentSubscription = $user->subscription;
+        $newPlan = SubscriptionPlan::findOrFail($request->subscription_plan_id);
+
+        if (!$currentSubscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active subscription found'
+            ], 404);
+        }
+
+        // Check if it's actually an upgrade
+        if ($newPlan->price <= $currentSubscription->plan->price) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected plan is not an upgrade'
+            ], 400);
+        }
+
+        // Calculate upgrade cost
+        $upgradeCost = $this->calculatePlanDiscount($currentSubscription, $newPlan);
+
+        // Calculate ad limit increase
+        $adLimitIncrease = $newPlan->ad_limit - $currentSubscription->plan->ad_limit;
+        
+        // Calculate ads already used this month
+        $adsUsedThisMonth = $currentSubscription->plan->ad_limit - $currentSubscription->usable_ad_for_this_month;
+        
+        // Calculate new allowance: upgraded plan ad_limit - 1 (as per specification)
+        $user_subscription = UserSubscription::where('status','active')->where('is_active',true)->where('user_id', $user->id)->first();
+        $newAllowance =  $user_subscription->usable_ad_for_this_month + $newPlan->ad_limit;
+        // Create transaction record
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'subscription_plan_id' => $newPlan->id,
+            'transaction_id' => Transaction::generateTransactionId(),
+            'type' => 'upgrade',
+            'amount' => $newPlan->price - $upgradeCost,
             'currency' => 'KWD',
             'payment_method' => 'manual',
             'status' => 'completed',
@@ -809,8 +1001,9 @@ class ProductApiController extends Controller
         $currentSubscription->update([
             'subscription_plan_id' => $newPlan->id,
             'expires_at' => $expiresAt,
-            'amount_paid' => $upgradeCost,
+            'amount_paid' => $newPlan->price,
             'payment_method' => 'manual',
+            'starts_at' => now(),
             'usable_ad_for_this_month' => $newAllowance,
         ]);
 
@@ -829,21 +1022,38 @@ class ProductApiController extends Controller
     }
 
     /**
-     * Calculate upgrade cost
+     * Calculate discount for a plan based on current subscription
      */
-    private function calculateUpgradeCost($currentSubscription, $newPlan)
+    private function calculatePlanDiscount($currentSubscription, $plan)
     {
         $currentPlan = $currentSubscription->plan;
-        $remainingDays = now()->diffInDays($currentSubscription->expires_at, false);
         
-        if ($remainingDays <= 0) {
-            return $newPlan->price;
+        // If current plan is lifetime, no discount
+        if ($currentPlan->is_lifetime) {
+            return 0;
+        }
+        // Calculate months passed since subscription creation (assuming 30 days per month)
+        $subscriptionStartDate = $currentSubscription->created_at;
+        $today = now();
+        
+        // Calculate the difference in months
+        $monthsPassed = abs(intval($today->diffInMonths($subscriptionStartDate)));
+        if ($monthsPassed <= 0) {
+            return 0;
         }
 
-        $dailyRate = $currentPlan->price / 30; // Assuming monthly plans
-        $remainingValue = $dailyRate * $remainingDays;
+        // Calculate days passed assuming 30 days per month
+        $daysPassed = $monthsPassed * 30;
         
-        return max(0, $newPlan->price - $remainingValue);
+        // Calculate current plan per day price
+        $planDurationInDays = $currentPlan->months_count * 30;
+        $currentPlanPerDayPrice = floatval($currentPlan->price) / floatval($planDurationInDays);
+        
+        // Calculate discount based on days passed
+        $discount_in_days = floatval($daysPassed) * floatval($currentPlanPerDayPrice);
+        $discount = min($discount_in_days, floatval($currentPlan->price)); // Don't exceed the original price
+        // dd($daysPassed, $currentPlanPerDayPrice, $discount, $currentPlan->price,$discount_in_days);  
+        return $discount;
     }
 
     /**
@@ -1089,6 +1299,8 @@ class ProductApiController extends Controller
             ->with('subscriptionPlan')
             ->first();
 
+
+        // This logic is incorrect. It should check if the subscription is expired (expires_at < now()), not the other way around.
         if (!$subscription) {
             return response()->json([
                 'success' => true,

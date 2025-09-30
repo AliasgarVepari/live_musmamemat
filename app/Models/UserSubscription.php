@@ -85,7 +85,7 @@ class UserSubscription extends Model
     {
         if ($this->subscriptionPlan) {
             $this->update([
-                'usable_ad_for_this_month' => $this->subscriptionPlan->ad_limit ?? 0,
+                'usable_ad_for_this_month' => $this->usable_ad_for_this_month + ($this->subscriptionPlan->ad_limit ?? 0),
                 'last_allowance_reset' => now(),
             ]);
         }

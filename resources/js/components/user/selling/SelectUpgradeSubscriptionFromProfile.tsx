@@ -5,10 +5,8 @@ import { Button } from "@/components/user/ui/button";
 import { Badge } from "@/components/user/ui/badge";
 import { Check, Star, Crown, Zap } from "lucide-react";
 
-interface SelectUpgradeSubscriptionProps {
-  formData: any;
-  updateFormData: (data: any) => void;
-  currentSubscription?: {
+interface SelectUpgradeSubscriptionFromProfileProps {
+  currentSubscription: {
     id: number;
     plan: {
       id: number;
@@ -25,6 +23,10 @@ interface SelectUpgradeSubscriptionProps {
     subscription_plan_id: number;
     analytics: boolean;
   };
+  onPlanSelect: (planId: number) => void;
+  selectedPlanId: number | undefined;
+  onUpgrade: (planId: number) => void;
+  isUpgrading?: boolean;
 }
 
 interface SubscriptionPlan {
@@ -51,23 +53,23 @@ interface SubscriptionPlan {
   is_current_lifetime?: boolean;
 }
 
-export const SelectUpgradeSubscription = ({ 
-  formData, 
-  updateFormData,
-  currentSubscription
-}: SelectUpgradeSubscriptionProps) => {
-  const { language, t } = useLanguage();
+export const SelectUpgradeSubscriptionFromProfile = ({ 
+  currentSubscription,
+  onPlanSelect,
+  selectedPlanId,
+  onUpgrade,
+  isUpgrading = false
+}: SelectUpgradeSubscriptionFromProfileProps) => {
+  const { language } = useLanguage();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    console.log('SelectUpgradeSubscription');
     const loadUpgradePlans = async () => {
       try {
         const token = localStorage.getItem('authToken');
         if (!token) return;
 
-        const response = await fetch('/api/user/subscription-plans/upgrade-options', {
+        const response = await fetch('/api/user/subscription-plans/upgrade-options-for-profile', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -77,7 +79,6 @@ export const SelectUpgradeSubscription = ({
         
         if (data.success) {
           setPlans(data.data || []);
-          setCurrentPlan(data.current_plan);
         }
       } catch (error) {
         console.error('Error loading upgrade plans:', error);
@@ -90,7 +91,13 @@ export const SelectUpgradeSubscription = ({
   }, [currentSubscription]);
 
   const handlePlanSelect = (planId: number) => {
-    updateFormData({ subscription_plan_id: planId });
+    onPlanSelect(planId);
+  };
+
+  const handleUpgrade = () => {
+    if (selectedPlanId) {
+      onUpgrade(selectedPlanId);
+    }
   };
 
   const getPlanName = (plan: SubscriptionPlan) => {
@@ -199,36 +206,34 @@ export const SelectUpgradeSubscription = ({
     <div className={`flex flex-col h-full ${language === 'ar' ? 'rtl' : 'ltr'}`}>
       <div className="flex-1 space-y-6">
         {/* Current Plan Info */}
-        {currentPlan && (
-          <div className="bg-muted/50 rounded-lg p-4 mb-6">
-            <h3 className={`text-lg font-semibold mb-3 ${language === 'ar' ? 'font-arabic' : ''}`}>
-              {language === 'ar' ? 'خطة الاشتراك الحالية' : 'Current Subscription Plan'}
-            </h3>
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className={`font-medium text-lg ${language === 'ar' ? 'font-arabic' : ''}`}>
-                  {language === 'ar' ? currentPlan.name_ar : currentPlan.name_en}
+        <div className="bg-muted/50 rounded-lg p-4 mb-6">
+          <h3 className={`text-lg font-semibold mb-3 ${language === 'ar' ? 'font-arabic' : ''}`}>
+            {language === 'ar' ? 'خطة الاشتراك الحالية' : 'Current Subscription Plan'}
+          </h3>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className={`font-medium text-lg ${language === 'ar' ? 'font-arabic' : ''}`}>
+                {language === 'ar' ? currentSubscription.plan.name_ar : currentSubscription.plan.name_en}
+              </p>
+              <div className="flex items-center gap-4 mt-2">
+                <p className={`text-sm text-muted-foreground ${language === 'ar' ? 'font-arabic' : ''}`}>
+                  {language === 'ar' ? `${currentSubscription.plan.ad_limit || 'N/A'} إعلان شهرياً` : `${currentSubscription.plan.ad_limit || 'N/A'} ads per month`}
                 </p>
-                <div className="flex items-center gap-4 mt-2">
-                  <p className={`text-sm text-muted-foreground ${language === 'ar' ? 'font-arabic' : ''}`}>
-                    {language === 'ar' ? `${currentPlan.ad_limit} إعلان شهرياً` : `${currentPlan.ad_limit} ads per month`}
-                  </p>
-                  <p className={`text-sm font-medium ${language === 'ar' ? 'font-arabic' : ''}`}>
-                    KD {currentPlan.price}
-                  </p>
-                </div>
+                <p className={`text-sm font-medium ${language === 'ar' ? 'font-arabic' : ''}`}>
+                  KD {currentSubscription.plan.price}
+                </p>
               </div>
-              <Badge variant="outline" className="ml-4">
-                {language === 'ar' ? 'نشط' : 'Active'}
-              </Badge>
             </div>
+            <Badge variant="outline" className="ml-4">
+              {language === 'ar' ? 'نشط' : 'Active'}
+            </Badge>
           </div>
-        )}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {plans.map((plan) => {
           const IconComponent = getPlanIcon(plan);
-          const isSelected = formData.subscription_plan_id === plan.id;
+          const isSelected = selectedPlanId === plan.id;
           const features = getPlanFeatures(plan);
           
           return (
@@ -252,10 +257,11 @@ export const SelectUpgradeSubscription = ({
                     <p className={`text-sm text-muted-foreground mb-3 ${language === 'ar' ? 'font-arabic' : ''}`}>
                       {language === 'ar' ? plan.description_ar : plan.description_en}
                     </p>
-                  )}
-                  
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    {currentSubscription?.plan.is_lifetime ? (
+                    
+                    )}
+                    
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                    {currentSubscription.plan.is_lifetime ? (
                       <div className="flex flex-col items-center">
                         <span className={`text-2xl font-bold ${language === 'ar' ? 'font-arabic' : ''}`}>
                           {plan.price === 0 ? (language === 'ar' ? 'مجاني' : 'Free') : `KD ${plan.price}`}
@@ -342,6 +348,27 @@ export const SelectUpgradeSubscription = ({
           }
         </p>
       </div>
+
+      {/* Upgrade Button */}
+      {selectedPlanId && (
+        <div className="mt-6 text-center">
+          <Button
+            onClick={handleUpgrade}
+            disabled={isUpgrading}
+            className="w-full max-w-md"
+            size="lg"
+          >
+            {isUpgrading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {language === 'ar' ? 'جاري الترقية...' : 'Upgrading...'}
+              </>
+            ) : (
+              language === 'ar' ? 'ترقية الاشتراك' : 'Upgrade Subscription'
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
