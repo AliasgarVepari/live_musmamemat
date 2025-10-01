@@ -20,13 +20,18 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Configure CSRF exceptions for OAuth callbacks
+        $middleware->validateCsrfTokens(except: [
+            'auth/*/callback',
+            'api/*',
+        ]);
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             CheckUserStatus::class,
         ]);
-
 
         $middleware->alias([
             'admin.auth' => AdminAuth::class,
