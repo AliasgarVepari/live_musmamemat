@@ -105,18 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithSocial = async (provider: 'apple' | 'google'): Promise<void> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    const userData: DemoUser = {
-      id: `demo-${provider}-${Date.now()}`,
-      fullName: `Demo ${provider === 'apple' ? 'Apple' : 'Google'} User`,
-      phoneE164: '+96512345678', // Demo phone
-    };
-
-    setUser(userData);
-    setIsAuthenticated(true);
-    localStorage.setItem('demoAuthUser', JSON.stringify(userData));
+    // Redirect to server-side OAuth flow
+    window.location.href = `/auth/${provider}/redirect`;
   };
 
   const signup = async (data: { fullName: string; phone: string; password: string }): Promise<{ otp: string; phone: string }> => {

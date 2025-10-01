@@ -1,0 +1,1 @@
+import{j as a,c as o}from"./app-BFHhdhpI.js";import{R as s}from"./index-BugCy1hJ.js";function d({className:e,...t}){return a.jsx(s,{"data-slot":"label",className:o("text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",e),...t})}export{d as L};

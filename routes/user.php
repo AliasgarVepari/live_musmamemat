@@ -5,6 +5,7 @@ use App\Http\Controllers\User\ProductController;
 use App\Http\Controllers\User\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Auth\SocialAuthController;
 
 Route::prefix('/')->group(function () {
     // Home page
@@ -80,6 +81,22 @@ Route::prefix('/')->group(function () {
     Route::delete('/profile/ads/{id}', [ProfileController::class, 'deleteAd'])->name('user.profile.ads.delete');
     Route::put('/profile/ads/{id}', [ProfileController::class, 'updateAd'])->name('user.profile.ads.update');
     Route::post('/profile/ads/{id}/feature', [ProfileController::class, 'toggleFeatured'])->name('user.profile.ads.feature');
+    
+    // Social auth (Apple) - web redirect & callback (Apple may POST the callback)
+    Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])
+        ->whereIn('provider', ['apple'])
+        ->name('user.social.redirect');
+    Route::match(['GET','POST'], '/auth/{provider}/callback', [SocialAuthController::class, 'callback'])
+        ->whereIn('provider', ['apple'])
+        ->name('user.social.callback');
+
+    // Test route for localhost - simulates Apple callback
+    Route::get('/test-apple-callback', [SocialAuthController::class, 'testCallback'])->name('test.apple.callback');
+
+    // Complete phone page
+    Route::get('/complete-phone', function () {
+        return Inertia::render('user/CompletePhone');
+    })->name('user.complete-phone');
     
     // Logout route
     Route::post('/logout', function () {

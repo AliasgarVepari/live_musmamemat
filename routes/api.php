@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\User\HomeApiController;
 use App\Http\Controllers\Api\User\PriceTypesController;
 use App\Http\Controllers\Api\User\ProductApiController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\User\SocialLinkingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,6 +34,10 @@ Route::prefix('user')->group(function () {
     Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::get('/auth/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+    
+    // Social phone OTP flow (after Apple login)
+    Route::post('/auth/phone/send-otp', [SocialLinkingController::class, 'sendPhoneOtp']);
+    Route::post('/auth/phone/verify-otp', [SocialLinkingController::class, 'verifyPhoneOtp']);
 
     // Home page data
     Route::get('/home', [HomeApiController::class, 'index']);
