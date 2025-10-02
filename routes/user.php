@@ -84,16 +84,17 @@ Route::prefix('/')->group(function () {
     Route::put('/profile/ads/{id}', [ProfileController::class, 'updateAd'])->name('user.profile.ads.update');
     Route::post('/profile/ads/{id}/feature', [ProfileController::class, 'toggleFeatured'])->name('user.profile.ads.feature');
     
-    // Social auth (Apple) - web redirect & callback (Apple may POST the callback)
+    // Social auth (Apple & Google) - web redirect & callback (Apple may POST the callback)
     Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])
-        ->whereIn('provider', ['apple'])
+        ->whereIn('provider', ['apple', 'google'])
         ->name('user.social.redirect');
     Route::match(['GET','POST'], '/auth/{provider}/callback', [SocialAuthController::class, 'callback'])
-        ->whereIn('provider', ['apple'])
+        ->whereIn('provider', ['apple', 'google'])
         ->name('user.social.callback');
 
-    // Test route for localhost - simulates Apple callback
+    // Test routes for localhost - simulates social callbacks
     Route::get('/test-apple-callback', [SocialAuthController::class, 'testCallback'])->name('test.apple.callback');
+    Route::get('/test-google-callback', [SocialAuthController::class, 'testGoogleCallback'])->name('test.google.callback');
 
     // Complete phone page
     Route::get('/complete-phone', [CompletePhoneController::class, 'index'])->name('user.complete-phone');

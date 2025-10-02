@@ -8,6 +8,7 @@ import { Input } from "@/components/user/ui/input";
 import { Label } from "@/components/user/ui/label";
 import { Checkbox } from "@/components/user/ui/checkbox";
 import { Loader2, Apple, AlertCircle } from "lucide-react";
+import apple from "@/assets/user/Apple_logo_black.svg";
 import { useToast } from "@/hooks/user/use-toast";
 import { OTPModal } from "./OTPModal";
 import { KuwaitPhoneInput } from "./KuwaitPhoneInput";
@@ -388,7 +389,7 @@ export const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
                   disabled={isLoading}
                   className="border-brand-red-200 hover:border-brand-red-600 hover:bg-brand-red-50 transition-all duration-300"
                 >
-                  <Apple className="mr-2 h-4 w-4" />
+                  <img src={apple} alt="Apple" className="mr-2 h-5 w-4" />
                   Apple
                 </Button>
                 <Button

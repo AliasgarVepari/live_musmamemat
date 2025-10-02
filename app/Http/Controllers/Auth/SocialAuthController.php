@@ -17,14 +17,14 @@ class SocialAuthController extends Controller
 {
     public function redirect(string $provider)
     {
-        // Only apple for now
-        abort_unless(in_array($provider, ['apple']), 404);
+        // Support both Apple and Google
+        abort_unless(in_array($provider, ['apple', 'google']), 404);
         return Socialite::driver($provider)->redirect();
     }
 
     public function callback(string $provider)
     {
-        abort_unless(in_array($provider, ['apple']), 404);
+        abort_unless(in_array($provider, ['apple', 'google']), 404);
 
         try {
             $providerUser = Socialite::driver($provider)->stateless()->user();
@@ -89,6 +89,47 @@ class SocialAuthController extends Controller
         // 2) Not linked yet: create or update a pending social account
         $pending = SocialAccount::updateOrCreate(
             ['provider' => 'apple', 'provider_user_id' => $providerId],
+            [
+                'name' => $mockProviderUser->name,
+                'email' => $mockProviderUser->email, // Store email from mock data
+                'avatar' => $mockProviderUser->avatar,
+                'raw' => $mockProviderUser->user,
+            ]
+        );
+
+        // Redirect to phone completion page with provider_user_id as parameter
+        return redirect()->route('user.complete-phone', ['provider_user_id' => $pending->provider_user_id]);
+    }
+
+    /**
+     * Test method for localhost - simulates Google callback
+     */
+    public function testGoogleCallback()
+    {
+        // Simulate Google user data
+        $mockProviderUser = (object) [
+            'id' => 'test_google_user_' . time(),
+            'name' => 'Test Google User',
+            'email' => 'test.google@example.com',
+            'avatar' => 'https://via.placeholder.com/150',
+            'user' => ['sub' => 'test_google_user_' . time()]
+        ];
+
+        $providerId = $mockProviderUser->id;
+
+        // 1) If already linked, login
+        $account = SocialAccount::where('provider', 'google')
+            ->where('provider_user_id', $providerId)
+            ->first();
+
+        if ($account && $account->user) {
+            Auth::guard('web')->login($account->user);
+            return redirect()->route('user.profile');
+        }
+
+        // 2) Not linked yet: create or update a pending social account
+        $pending = SocialAccount::updateOrCreate(
+            ['provider' => 'google', 'provider_user_id' => $providerId],
             [
                 'name' => $mockProviderUser->name,
                 'email' => $mockProviderUser->email, // Store email from mock data

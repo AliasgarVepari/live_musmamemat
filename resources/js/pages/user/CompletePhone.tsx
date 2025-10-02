@@ -3,6 +3,7 @@ import UserLayout from '@/layouts/user/user-layout';
 import { Button } from '@/components/user/ui/button';
 import { Input } from '@/components/user/ui/input';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Head } from '@inertiajs/react';
 
 interface CompletePhoneProps {
@@ -11,6 +12,7 @@ interface CompletePhoneProps {
 
 export default function CompletePhone({ provider_user_id }: CompletePhoneProps) {
     const { addToast } = useToast();
+    const { setServerAuth } = useAuth();
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
     const [stage, setStage] = useState<'phone' | 'otp'>('phone');
@@ -49,9 +51,13 @@ export default function CompletePhone({ provider_user_id }: CompletePhoneProps) 
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || 'Failed');
 
+            // Update AuthContext immediately
+            setServerAuth(data.data.user, true);
             localStorage.setItem('authUser', JSON.stringify(data.data.user));
             localStorage.setItem('authToken', data.data.token);
-            window.location.href = '/auth/login/' + data.data.token;
+            
+            // Redirect to profile instead of token route
+            window.location.href = '/profile';
         } catch (e: any) {
             addToast({ type: 'error', title: 'Error', message: e.message || 'Failed to verify OTP' });
         } finally {
