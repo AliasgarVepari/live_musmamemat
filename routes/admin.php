@@ -65,6 +65,16 @@ Route::prefix('admin')->group(function () {
         // Finance Management
         Route::get('finance', [App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('finance.index');
         Route::get('finance/export', [App\Http\Controllers\Admin\FinanceController::class, 'exportCsv'])->name('finance.export');
+
+        // System Maintenance
+        Route::post('maintenance/cleanup-otps', function () {
+            $deletedCount = \App\Models\PhoneOtp::cleanupExpired();
+            return response()->json([
+                'success' => true,
+                'message' => "Cleaned up {$deletedCount} expired OTPs.",
+                'deleted_count' => $deletedCount
+            ]);
+        })->name('admin.maintenance.cleanup-otps');
     });
     require __DIR__ . '/auth.php';
     require __DIR__ . '/settings.php';

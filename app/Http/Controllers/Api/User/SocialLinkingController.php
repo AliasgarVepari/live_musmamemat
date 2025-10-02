@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\PhoneOtp;
 use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -26,9 +27,20 @@ class SocialLinkingController extends Controller
         $phone = $request->phone;
         $otp = '123456'; // Static OTP for development
         
-        // Store OTP in session with proper keys
-        Session::put('social_phone_otp_' . $phone, $otp);
-        Session::put('social_phone_otp_expires_' . $phone, now()->addMinutes(10));
+        // Get provider_user_id from session if available
+        $providerUserId = Session::get('pending_social_account_id') ? 
+            SocialAccount::find(Session::get('pending_social_account_id'))?->provider_user_id : null;
+        
+        // Clean up any existing OTPs for this phone
+        PhoneOtp::where('phone', $phone)->delete();
+        
+        // Store OTP in database
+        PhoneOtp::create([
+            'phone' => $phone,
+            'otp' => $otp,
+            'provider_user_id' => $providerUserId,
+            'expires_at' => now()->addMinutes(10),
+        ]);
 
         // For development: log the OTP to console/logs
         \Log::info('Social Login OTP for phone ' . $phone . ': ' . $otp);
@@ -58,16 +70,20 @@ class SocialLinkingController extends Controller
 
         $phone = $request->phone;
         $otp = $request->otp;
-        $expected = Session::get('social_phone_otp_' . $phone);
-        $expiresAt = Session::get('social_phone_otp_expires_' . $phone);
+        
+        // Get provider_user_id from session if available
+        $providerUserId = Session::get('pending_social_account_id') ? 
+            SocialAccount::find(Session::get('pending_social_account_id'))?->provider_user_id : null;
+        
+        // Find valid OTP in database
+        $phoneOtp = PhoneOtp::findValid($phone, $otp, $providerUserId);
 
-        if (!$expected || !$expiresAt || now()->greaterThan($expiresAt) || $expected !== $otp) {
+        if (!$phoneOtp) {
             return response()->json(['success' => false, 'message' => 'Invalid or expired OTP'], 422);
         }
 
-        // Clear OTP from session after successful verification
-        Session::forget('social_phone_otp_' . $phone);
-        Session::forget('social_phone_otp_expires_' . $phone);
+        // Mark OTP as used
+        $phoneOtp->markAsUsed();
 
         // Resolve pending social account
         $pendingId = session('pending_social_account_id');
