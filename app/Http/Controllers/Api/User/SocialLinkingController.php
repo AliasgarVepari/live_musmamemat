@@ -18,6 +18,7 @@ class SocialLinkingController extends Controller
     {
         $validator = \Validator::make($request->all(), [
             'phone' => 'required|string|min:8|max:8',
+            'provider_user_id' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -27,9 +28,9 @@ class SocialLinkingController extends Controller
         $phone = $request->phone;
         $otp = '123456'; // Static OTP for development
         
-        // Get provider_user_id from session if available
-        $providerUserId = Session::get('pending_social_account_id') ? 
-            SocialAccount::find(Session::get('pending_social_account_id'))?->provider_user_id : null;
+        // Get provider_user_id from request or find the most recent pending social account
+        $providerUserId = $request->provider_user_id ?? 
+            SocialAccount::whereNull('user_id')->latest()->first()?->provider_user_id;
         
         // Clean up any existing OTPs for this phone
         PhoneOtp::where('phone', $phone)->delete();
@@ -71,12 +72,8 @@ class SocialLinkingController extends Controller
         $phone = $request->phone;
         $otp = $request->otp;
         
-        // Get provider_user_id from session if available
-        $providerUserId = Session::get('pending_social_account_id') ? 
-            SocialAccount::find(Session::get('pending_social_account_id'))?->provider_user_id : null;
-        
         // Find valid OTP in database
-        $phoneOtp = PhoneOtp::findValid($phone, $otp, $providerUserId);
+        $phoneOtp = PhoneOtp::findValid($phone, $otp);
 
         if (!$phoneOtp) {
             return response()->json(['success' => false, 'message' => 'Invalid or expired OTP'], 422);
@@ -85,25 +82,31 @@ class SocialLinkingController extends Controller
         // Mark OTP as used
         $phoneOtp->markAsUsed();
 
-        // Resolve pending social account
-        $pendingId = session('pending_social_account_id');
-        if (!$pendingId) {
-            return response()->json(['success' => false, 'message' => 'No pending social account'], 400);
-        }
+        // Find the pending social account using provider_user_id from OTP
+        $account = SocialAccount::where('provider_user_id', $phoneOtp->provider_user_id)
+            ->whereNull('user_id')
+            ->first();
 
-        $account = SocialAccount::find($pendingId);
         if (!$account) {
-            return response()->json(['success' => false, 'message' => 'Pending social account not found'], 404);
+            return response()->json(['success' => false, 'message' => 'No pending social account found for this OTP'], 400);
         }
 
         // Find or create user by phone
         $user = User::where('phone', $phone)->first();
         if (!$user) {
+            // Get name and email from social account
+            $socialName = $account->name ?? 'Social User';
+            $socialEmail = $account->email; // Store email from social provider
+            
             $user = User::create([
+                'name_en' => $socialName,
+                'name_ar' => $socialName, // Same name for both languages initially
                 'phone' => $phone,
+                'email' => $socialEmail, // Store email from social provider
                 'password' => Hash::make(str()->random(32)),
                 'status' => 'active',
                 'governorate_id' => 1,
+                'email_verified_at' => $socialEmail ? now() : null, // Verify if email exists
             ]);
         }
 

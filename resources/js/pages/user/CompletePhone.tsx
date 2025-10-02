@@ -5,7 +5,11 @@ import { Input } from '@/components/user/ui/input';
 import { useToast } from '@/contexts/ToastContext';
 import { Head } from '@inertiajs/react';
 
-export default function CompletePhone() {
+interface CompletePhoneProps {
+    provider_user_id?: string;
+}
+
+export default function CompletePhone({ provider_user_id }: CompletePhoneProps) {
     const { addToast } = useToast();
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
@@ -18,7 +22,10 @@ export default function CompletePhone() {
             const res = await fetch('/api/user/auth/phone/send-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone }),
+                body: JSON.stringify({ 
+                    phone,
+                    provider_user_id: provider_user_id 
+                }),
             });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || 'Failed');

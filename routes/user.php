@@ -94,8 +94,10 @@ Route::prefix('/')->group(function () {
     Route::get('/test-apple-callback', [SocialAuthController::class, 'testCallback'])->name('test.apple.callback');
 
     // Complete phone page
-    Route::get('/complete-phone', function () {
-        return Inertia::render('user/CompletePhone');
+    Route::get('/complete-phone', function (Request $request) {
+        return Inertia::render('user/CompletePhone', [
+            'provider_user_id' => $request->get('provider_user_id')
+        ]);
     })->name('user.complete-phone');
     
     // Logout route

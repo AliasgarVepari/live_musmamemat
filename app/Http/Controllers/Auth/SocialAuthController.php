@@ -50,15 +50,14 @@ class SocialAuthController extends Controller
             ['provider' => $provider, 'provider_user_id' => $providerId],
             [
                 'name' => $providerUser->getName(),
+                'email' => $providerUser->getEmail(), // Store email from social provider
                 'avatar' => $providerUser->getAvatar(),
                 'raw' => $providerUser->user ?? null,
             ]
         );
 
-        // Store pending social account id in session and ask for phone
-        Session::put('pending_social_account_id', $pending->id);
-
-        return redirect()->route('user.complete-phone');
+        // Redirect to phone completion page with provider_user_id as parameter
+        return redirect()->route('user.complete-phone', ['provider_user_id' => $pending->provider_user_id]);
     }
 
     /**
@@ -92,15 +91,14 @@ class SocialAuthController extends Controller
             ['provider' => 'apple', 'provider_user_id' => $providerId],
             [
                 'name' => $mockProviderUser->name,
+                'email' => $mockProviderUser->email, // Store email from mock data
                 'avatar' => $mockProviderUser->avatar,
                 'raw' => $mockProviderUser->user,
             ]
         );
 
-        // Store pending social account id in session and ask for phone
-        Session::put('pending_social_account_id', $pending->id);
-
-        return redirect()->route('user.complete-phone');
+        // Redirect to phone completion page with provider_user_id as parameter
+        return redirect()->route('user.complete-phone', ['provider_user_id' => $pending->provider_user_id]);
     }
 }
 

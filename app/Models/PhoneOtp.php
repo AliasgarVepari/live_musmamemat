@@ -52,6 +52,7 @@ class PhoneOtp extends Model
             ->where('is_used', false)
             ->where('expires_at', '>', now());
 
+        // If provider_user_id is provided, match it; otherwise find any valid OTP for the phone
         if ($providerUserId) {
             $query->where('provider_user_id', $providerUserId);
         }
