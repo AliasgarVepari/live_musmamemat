@@ -32,7 +32,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   login: (phone: string, password: string) => Promise<void>;
-  loginWithSocial: (provider: 'apple' | 'google') => Promise<void>;
+  loginWithSocial: (provider: 'apple' | 'google') => void;
   signup: (data: { fullName: string; phone: string; password: string }) => Promise<{ otp: string; phone: string }>;
   verifyOTP: (phone: string, otp: string) => Promise<void>;
   logout: () => void;
@@ -51,9 +51,11 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [pendingUser, setPendingUser] = useState<any>(null);
+
+  // Derive isAuthenticated from user state
+  const isAuthenticated = !!user;
 
   // Load auth state from localStorage on mount
   useEffect(() => {
@@ -62,14 +64,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedAuth && savedToken) {
       const userData = JSON.parse(savedAuth);
       setUser(userData);
-      setIsAuthenticated(true);
     }
   }, []);
 
   // Function to set auth state from server-side data
   const setServerAuth = (user: User | null, authenticated: boolean) => {
     setUser(user);
-    setIsAuthenticated(authenticated);
+    // isAuthenticated is now derived from user state
   };
 
   const login = async (phone: string, password: string): Promise<void> => {
@@ -93,7 +94,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.success) {
         setUser(data.data.user);
-        setIsAuthenticated(true);
         localStorage.setItem('authUser', JSON.stringify(data.data.user));
         localStorage.setItem('authToken', data.data.token);
         
@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
   };
 
-  const loginWithSocial = async (provider: 'apple' | 'google'): Promise<void> => {
+  const loginWithSocial = (provider: 'apple' | 'google'): void => {
     // Redirect to server-side OAuth flow
     window.location.href = `/auth/${provider}/redirect`;
   };
@@ -167,7 +167,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (data.success) {
       setUser(data.data.user);
-      setIsAuthenticated(true);
       setPendingUser(null);
       localStorage.setItem('authUser', JSON.stringify(data.data.user));
       localStorage.setItem('authToken', data.data.token);
@@ -182,7 +181,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     // Clear local state immediately
     setUser(null);
-    setIsAuthenticated(false);
     setPendingUser(null);
     localStorage.removeItem('authUser');
     localStorage.removeItem('authToken');

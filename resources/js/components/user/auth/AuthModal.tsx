@@ -150,19 +150,17 @@ export const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
     }
   };
 
-  const handleSocialLogin = async (provider: 'apple' | 'google') => {
+  const handleSocialLogin = (provider: 'apple' | 'google') => {
     setIsLoading(true);
     try {
-      await loginWithSocial(provider);
-      onSuccess();
-      onClose();
+      loginWithSocial(provider);
+      // Don't call onSuccess() and onClose() here since loginWithSocial redirects the page
     } catch (error) {
       toast({
         title: t('auth.error'),
         description: t('auth.loginFailed'),
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
