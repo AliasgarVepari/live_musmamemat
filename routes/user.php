@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\User\CompletePhoneController;
 use App\Http\Controllers\User\HomeController;
 use App\Http\Controllers\User\ProductController;
 use App\Http\Controllers\User\ProfileController;
@@ -95,11 +96,7 @@ Route::prefix('/')->group(function () {
     Route::get('/test-apple-callback', [SocialAuthController::class, 'testCallback'])->name('test.apple.callback');
 
     // Complete phone page
-    Route::get('/complete-phone', function (Request $request) {
-        return Inertia::render('user/CompletePhone', [
-            'provider_user_id' => $request->get('provider_user_id')
-        ]);
-    })->name('user.complete-phone');
+    Route::get('/complete-phone', [CompletePhoneController::class, 'index'])->name('user.complete-phone');
     
     // Logout route
     Route::post('/logout', function () {
